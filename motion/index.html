@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Made in Code</title>
+<style>
+  html, body { margin: 0; background: #000; color: #F4EFE6; font: 13px Inter, system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: auto; max-height: calc(100vh - 36px); object-fit: contain; }
+  .bar { display: flex; gap: 12px; align-items: center; padding: 8px 12px; }
+  .bar input { flex: 1; }
+  body.render canvas { width: 1920px; height: 1080px; max-height: none; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar"><span>space: play/pause · ←/→: frame step · click to enable sound</span><input id="scrub" type="range" min="0" value="0"></div>
+<script>if (location.search.includes('render')) document.body.className = 'render';</script>
+<script src="comp.js"></script>
+</body>
+</html>
