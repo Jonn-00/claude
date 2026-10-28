@@ -63,6 +63,7 @@ const out = await build({
   define: { "process.env.NODE_ENV": '"production"' },
   alias: { "next/link": resolve(root, "spa/shims/next-link.tsx"), "next/navigation": resolve(root, "spa/shims/next-navigation.ts"), "@": root },
   plugins: [globals],
+  loader: { ".webp": "dataurl" },
   logLevel: "warning",
 });
 const js = out.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");

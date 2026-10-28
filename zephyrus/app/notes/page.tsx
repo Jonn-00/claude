@@ -43,7 +43,7 @@ export default function NotesPage() {
 
   return (
     <div className="mx-auto max-w-[1480px]">
-      <PageHeader title="Notes" line={`${s.notes.length} quick notes · daily reports written ${streak} day${streak === 1 ? "" : "s"} running`} />
+      <PageHeader photo="notes" title="Notes" line={`${s.notes.length} quick notes · daily reports written ${streak} day${streak === 1 ? "" : "s"} running`} />
       <ReportFlow state={s} now={now} />
       <div className="mt-5 grid gap-5 xl:h-[620px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Panel tone="glass" index={1} title="Quick notes" aside={<span className="num">{notes.length}</span>} className="xl:min-h-0">

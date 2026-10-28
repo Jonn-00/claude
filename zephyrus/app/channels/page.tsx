@@ -106,6 +106,7 @@ export default function ChannelsPage() {
   return (
     <div className="mx-auto max-w-[1480px]">
       <PageHeader
+        photo="channels"
         title="Channels"
         line={
           <>

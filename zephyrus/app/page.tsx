@@ -9,6 +9,7 @@ import { CallsCard } from "@/components/today/calls-card";
 import { HourlyPlanner } from "@/components/today/hourly-planner";
 import { Reminders } from "@/components/today/reminders";
 import { Agenda } from "@/components/today/agenda";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TodayPage() {
   const s = useAppState()!;
@@ -23,17 +24,16 @@ export default function TodayPage() {
 
   return (
     <div className="mx-auto max-w-[1480px]">
-      <div className="mb-5">
-        <h1 className="font-display text-[28px] leading-9 font-semibold tracking-[-0.02em]">{longDate(now)}</h1>
-        <p className="num mt-0.5 text-[15px] text-muted">
-          {parts.map((p, i) => (
-            <span key={i}>
-              {i > 0 && <span className="text-faint"> · </span>}
-              {p}
-            </span>
-          ))}
-        </p>
-      </div>
+      <PageHeader
+        photo="today"
+        title={longDate(now)}
+        line={parts.map((p, i) => (
+          <span key={i}>
+            {i > 0 && <span className="opacity-60"> · </span>}
+            {p}
+          </span>
+        ))}
+      />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-5">
           <ProductionLine state={s} now={now} />

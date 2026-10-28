@@ -44,6 +44,7 @@ export default function PlannerPage() {
   return (
     <div className="mx-auto max-w-[1480px]">
       <PageHeader
+        photo="planner"
         title="Planner"
         line={
           <>

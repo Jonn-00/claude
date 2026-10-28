@@ -155,6 +155,7 @@ function Agency() {
   return (
     <div className="mx-auto max-w-[1480px]">
       <PageHeader
+        photo="agency"
         title="Agency"
         line={
           <>

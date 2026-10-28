@@ -62,6 +62,20 @@ The app opens with **sample data** so you can see it working: the four channel n
 
 Some cards use the Finance Bento look (21st.dev, @romanvasnev): a warm vertical colour field behind a dark core (Calls, Pipeline, Closed this month, the charts), and see-through glass tiles for the working cards. Big counts are a dot-matrix number or a thin figure with a row of ticks under it showing progress.
 
+Each page opens on a warm golden-hour photograph that fades into the dark ground, with the page title over it.
+
 Dark warm ground; surfaces step up in lightness instead of borders and shadows. Ember orange (`#ff6a1a`) is the one data colour and the "needs you" signal: anything late, due today or overdue gets a warm light behind it, everything else stays back. Type is Bricolage Grotesque for headings and figures, Onest for the interface, both bundled with the app.
 
 Built with the design skills in `.claude/skills` (Impeccable, Taste, Emil Kowalski's design-engineering set); the dealt direction is in `.taste-skill/direction.json`.
+
+## Photo credits
+
+Header photographs are from [Unsplash](https://unsplash.com/?utm_source=zephyrus&utm_medium=referral), used under the Unsplash License, and stored in `assets/photos`:
+
+- Today: [Olexandr Ignatov](https://unsplash.com/@olexandrignatov?utm_source=zephyrus&utm_medium=referral)
+- Channels: [Nibras Hassan Nathu](https://unsplash.com/@pop_at_nibras_hassan?utm_source=zephyrus&utm_medium=referral)
+- Agency: [Kreit](https://unsplash.com/@kreit?utm_source=zephyrus&utm_medium=referral)
+- Planner: [Jay Lo](https://unsplash.com/@jaylotw?utm_source=zephyrus&utm_medium=referral)
+- Notes: [Avtar Singh](https://unsplash.com/@avtar9w?utm_source=zephyrus&utm_medium=referral)
+
+To swap one, replace the file in `assets/photos` (a wide crop, about 1800 × 560) and update its credit in `lib/photos.ts`.
