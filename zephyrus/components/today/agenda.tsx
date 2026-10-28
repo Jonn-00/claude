@@ -1,5 +1,6 @@
 "use client";
 
+import { label } from "@/lib/stages";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { actions } from "@/lib/store";
@@ -66,7 +67,7 @@ export function Agenda({ state, now }: { state: State; now: number }) {
         aria-keyshortcuts="A"
         className="press flex h-[52px] w-full items-center gap-2 rounded-[18px] px-5 text-left"
       >
-        <h2 className="font-display text-[16px] font-semibold tracking-[-0.01em]">Agenda</h2>
+        <h2 className="font-display text-[16px] font-semibold tracking-[-0.01em]">{label(state, "agenda", "Agenda")}</h2>
         <span className="num text-[13px] text-faint">{isToday ? (filled ? `${filled} of 3 written` : "today's report") : longDate(fromKey(date))}</span>
         <Kbd className="ml-auto">A</Kbd>
         <ChevronDown size={16} className={cn("text-muted transition-transform duration-200 ease-[var(--ease-out)]", open && "rotate-180")} />

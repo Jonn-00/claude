@@ -10,6 +10,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { LineChart } from "@/components/charts/line-chart";
 import { CountUp } from "@/components/ui/count-up";
 import { TONE } from "@/lib/tones";
+import { EditableTitle } from "@/components/ui/editable-title";
 
 type Range = "7" | "28" | "90";
 
@@ -51,7 +52,7 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
   return (
     <Panel
       framed
-      title="Channels"
+      title={<EditableTitle state={state} k="channels" fallback="Channels" />}
       aside={
         <Segmented
           label="Range"
@@ -117,7 +118,9 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
       <div className="mt-2 flex flex-1 flex-col">
         <LineChart points={points} marks={marks} height="fill" unit="Views" format={(v) => fmt(v)} ariaLabel={`${channel.name} daily views, last ${n} days`} />
       </div>
-      <p className="mt-2 text-[12px] text-faint">Ticks under the line are upload days. Sample data through yesterday, until YouTube is connected.</p>
+      <p className="mt-2 text-[12px] text-faint">
+        Ticks under the line are upload days. {channel.real?.views30 ? "Scaled to your numbers." : "Estimates until you add your numbers on Channels."}
+      </p>
     </Panel>
   );
 }

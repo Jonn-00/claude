@@ -13,6 +13,8 @@ import { Segmented } from "@/components/ui/segmented";
 import { CountUp } from "@/components/ui/count-up";
 import { OutcomeButtons } from "@/components/ui/outcome-buttons";
 import { notify } from "@/components/ui/notify";
+import { Editable } from "@/components/ui/editable";
+import { EditableTitle } from "@/components/ui/editable-title";
 
 
 /** Logging a dial is the agency's most frequent job, so it's one tap from Today. */
@@ -34,7 +36,17 @@ export function CallsCard({ state, now, className }: { state: State; now: number
   };
 
   return (
-    <Panel framed title="Calls today" aside={<span className="num">target {target}</span>} className={className}>
+    <Panel
+      framed
+      title={<EditableTitle state={state} k="calls" fallback="Calls today" />}
+      aside={
+        <span className="num">
+          target{" "}
+          <Editable value={String(target)} label="Daily dial target" onSave={(v) => actions.setSettings({ dialTarget: Math.max(1, Math.round(Number(v)) || target) })} inputClassName="h-6 w-14 text-right" />
+        </span>
+      }
+      className={className}
+    >
       <div className="flex items-end justify-between gap-3">
         <div className="font-display text-[34px] leading-none font-medium tracking-[-0.02em]">
           <CountUp value={c.dials} />

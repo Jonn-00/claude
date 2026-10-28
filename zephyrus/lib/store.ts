@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { seed } from "./seed";
+import { migrate, seed } from "./seed";
 import { buildStats } from "./stats";
 import { dayKey } from "./time";
 import type { State } from "./types";
 import { uid } from "./utils";
+import { stagesOf } from "./stages";
 
 const KEY = "zephyrus:v1";
 
@@ -17,7 +18,7 @@ function load(): State {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as State;
-      if (parsed.version === 1) return parsed;
+      if (parsed.version === 1) return migrate(parsed);
     }
   } catch {
     /* private window or blocked storage: run from the sample */
@@ -83,12 +84,17 @@ export function resetSample() {
   setState(() => seed());
 }
 
+/** Keep your channels, stages, names and settings; empty everything else. */
+export function startFresh() {
+  setState((s) => ({ ...s, videos: [], leads: [], calls: [], blocks: [], reminders: [], agenda: {}, notes: [] }));
+}
+
 /* ---------------- actions ---------------- */
 
 export const actions = {
   moveVideo(id: string, dir: 1 | -1) {
     setState((s) => {
-      const order = ["idea", "script", "voice", "edit", "thumbnail", "scheduled", "live"] as const;
+      const order = stagesOf(s).map((x) => x.id);
       return {
         ...s,
         videos: s.videos.map((v) => {
@@ -114,8 +120,51 @@ export const actions = {
       return { ...s, [key]: arr };
     });
   },
+  updateVideo(id: string, patch: Partial<State["videos"][number]>) {
+    setState((s) => ({ ...s, videos: s.videos.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
+  },
+  renameStage(id: string, label: string) {
+    setState((s) => ({ ...s, stages: stagesOf(s).map((x) => (x.id === id ? { ...x, label } : x)) }));
+  },
+  /** A new stage right after `after` (never after Live). Returns its id. */
+  addStage(after: string, label = "New stage") {
+    const id = "st-" + uid();
+    setState((s) => {
+      const list = [...stagesOf(s)];
+      let i = list.findIndex((x) => x.id === after) + 1;
+      const sched = list.findIndex((x) => x.id === "scheduled");
+      if (sched >= 0 && i > sched) i = sched;
+      list.splice(i, 0, { id, label });
+      return { ...s, stages: list };
+    });
+    return id;
+  },
+  /** Removes a stage; its videos move to the stage before it. */
+  removeStage(id: string) {
+    setState((s) => {
+      const list = stagesOf(s);
+      const i = list.findIndex((x) => x.id === id);
+      if (i < 0 || id === "scheduled" || id === "live") return s;
+      const fallback = (list[i - 1] ?? list[i + 1]).id;
+      return { ...s, stages: list.filter((x) => x.id !== id), videos: s.videos.map((v) => (v.stage === id ? { ...v, stage: fallback } : v)) };
+    });
+  },
+  restoreStages(stages: State["stages"], videos: State["videos"]) {
+    setState((s) => ({ ...s, stages, videos }));
+  },
+  setLabel(key: string, value: string) {
+    setState((s) => ({ ...s, labels: { ...s.labels, [key]: value } }));
+  },
+  updateChannel(id: string, patch: Partial<State["channels"][number]>) {
+    setState((s) => ({ ...s, channels: s.channels.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  },
+  updateReminder(id: string, patch: Partial<State["reminders"][number]>) {
+    setState((s) => ({ ...s, reminders: s.reminders.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+  },
   addVideo(v: Omit<State["videos"][number], "id">) {
-    setState((s) => ({ ...s, videos: [...s.videos, { ...v, id: uid() }] }));
+    const id = uid();
+    setState((s) => ({ ...s, videos: [...s.videos, { ...v, id }] }));
+    return id;
   },
   removeVideo(id: string) {
     setState((s) => ({ ...s, videos: s.videos.filter((v) => v.id !== id) }));

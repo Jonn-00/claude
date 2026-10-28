@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarClock, Clapperboard, LayoutGrid, Menu, NotebookPen, PhoneCall, Search, Settings2, X } from "lucide-react";
-import { actions, resetSample, useAppState } from "@/lib/store";
+import { CalendarClock, Clapperboard, LayoutGrid, Menu, NotebookPen, PanelLeftClose, PanelLeftOpen, PhoneCall, Search, Settings2, X } from "lucide-react";
+import { actions, resetSample, startFresh, useAppState } from "@/lib/store";
 import { callbacks } from "@/lib/derive";
 import { dayKey, minutesOf, timeOf, until, useNow, hhmm } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState(false);
 
   useEffect(() => setMenu(false), [path]);
+
+  // The sidebar folds to an icon rail; remembered per browser.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("zephyrus:nav") === "rail");
+    } catch {}
+  }, []);
+  const toggleNav = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem("zephyrus:nav", c ? "full" : "rail");
+      } catch {}
+      return !c;
+    });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLElement && e.target.closest("input,textarea,select,[contenteditable=true]");
+      if (!typing && e.key === "[" && !e.metaKey && !e.ctrlKey) toggleNav();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Lit things lean their light toward the pointer. One listener for the app;
   // it only writes to the element under the pointer.
@@ -101,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           : { label: block.title, when: until(blockAt, now) + ` · ${hhmm(block.start)}` };
   }
 
-  const nav = (
+  const navList = (rail: boolean) => (
     <nav aria-label="Main" className="flex flex-col gap-0.5">
       {NAV.map(({ href, label, icon: Icon }) => {
         const on = href === "/" ? path === "/" : path.startsWith(href);
@@ -110,15 +133,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             key={href}
             href={href}
             aria-current={on ? "page" : undefined}
+            aria-label={rail ? label : undefined}
+            title={rail ? label : undefined}
             className={cn(
-              "press flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[14px] transition-colors",
+              "press relative flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[14px] transition-colors",
               on ? "bg-raised text-text" : "text-muted hover:bg-raised/60 hover:text-text",
             )}
           >
-            <Icon size={16} strokeWidth={1.6} className={on ? "text-text" : "text-faint"} />
-            <span className="flex-1">{label}</span>
+            <Icon size={16} strokeWidth={1.6} className={cn("shrink-0", on ? "text-text" : "text-faint")} />
+            <span className={cn("flex-1 truncate transition-opacity duration-150", rail && "sr-only")}>{label}</span>
             {href === "/agency" && overdue > 0 && (
-              <span className="num rounded-full bg-ember-tint px-1.5 text-[12px] leading-5 text-ember-soft" aria-label={`${overdue} overdue callbacks`}>
+              <span
+                className={cn("num rounded-full bg-ember-tint px-1.5 text-[12px] leading-5 text-ember-soft", rail && "absolute -top-1 -right-1 px-1 text-[10px] leading-4")}
+                aria-label={`${overdue} overdue callbacks`}
+              >
                 {overdue}
               </span>
             )}
@@ -129,19 +157,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
-      {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule px-3 py-4 lg:flex">
-        <div className="mb-6 flex items-center gap-2.5 px-1.5">
+    <div
+      className="min-h-dvh lg:grid lg:grid-cols-[var(--nav)_minmax(0,1fr)] lg:transition-[grid-template-columns] lg:duration-200 lg:ease-[var(--ease-out)] motion-reduce:transition-none"
+      style={{ ["--nav" as string]: collapsed ? "64px" : "232px" }}
+      data-nav={collapsed ? "rail" : "full"}
+    >
+      {/* Sidebar: full, or folded to an icon rail with [ or the button. */}
+      <aside className={cn("sticky top-0 z-20 hidden h-dvh min-w-0 flex-col border-r border-rule py-4 lg:flex", collapsed ? "px-2" : "px-3")}>
+        <div className={cn("mb-6 flex items-center gap-2.5", collapsed ? "flex-col px-0" : "px-1.5")}>
           <Mark />
-          <div className="leading-tight">
-            <div className="font-display text-[16px] font-semibold tracking-[-0.01em]">Zephyrus</div>
-            <div className="text-[12px] text-faint">4 channels · AI ad agency</div>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="font-display text-[16px] font-semibold tracking-[-0.01em]">Zephyrus</div>
+              <div className="truncate text-[12px] text-faint">4 channels · AI ad agency</div>
+            </div>
+          )}
+          <button
+            onClick={toggleNav}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-keyshortcuts="["
+            title={collapsed ? "Expand sidebar  [" : "Collapse sidebar  ["}
+            className="press grid size-8 shrink-0 place-items-center rounded-[8px] text-faint hover:bg-raised hover:text-text"
+          >
+            {collapsed ? <PanelLeftOpen size={16} strokeWidth={1.6} /> : <PanelLeftClose size={16} strokeWidth={1.6} />}
+          </button>
         </div>
-        {nav}
+        {navList(collapsed)}
         <div className="mt-auto">
-          <SettingsMenu open={settings} setOpen={setSettings} />
+          <SettingsMenu open={settings} setOpen={setSettings} rail={collapsed} />
         </div>
       </aside>
 
@@ -196,7 +239,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <X size={18} />
             </button>
           </div>
-          <div className="[&_a]:h-12 [&_a]:text-[16px]">{nav}</div>
+          <div className="[&_a]:h-12 [&_a]:text-[16px]">{navList(false)}</div>
           <div className="mt-6 border-t border-rule pt-4">
             <SettingsMenu open={settings} setOpen={setSettings} />
           </div>
@@ -211,7 +254,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SettingsMenu({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void }) {
+function SettingsMenu({ open, setOpen, rail = false }: { open: boolean; setOpen: (o: boolean) => void; rail?: boolean }) {
   const s = useAppState();
   if (!s) return null;
   return (
@@ -219,10 +262,12 @@ function SettingsMenu({ open, setOpen }: { open: boolean; setOpen: (o: boolean) 
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-label={rail ? "Settings" : undefined}
+        title={rail ? "Settings" : undefined}
         className="press flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-[14px] text-muted hover:bg-raised/60 hover:text-text"
       >
-        <Settings2 size={16} strokeWidth={1.6} className="text-faint" />
-        Settings
+        <Settings2 size={16} strokeWidth={1.6} className="shrink-0 text-faint" />
+        <span className={cn(rail && "sr-only")}>Settings</span>
       </button>
       {open && (
         <div className="pop absolute bottom-11 left-0 z-40 w-[260px] origin-bottom-left rounded-[14px] border border-control bg-raised p-4 shadow-[0_18px_40px_-16px_rgb(0_0_0/0.9)]">
@@ -246,9 +291,19 @@ function SettingsMenu({ open, setOpen }: { open: boolean; setOpen: (o: boolean) 
               className="num h-8 w-20 rounded-[8px] border border-control bg-surface px-2 text-right text-text"
             />
           </label>
-          <p className="mt-3 text-[12px] leading-[17px] text-faint">Everything saves in this browser. Rename channels on the Channels page.</p>
+          <p className="mt-3 text-[12px] leading-[17px] text-faint">Everything saves in this browser. Click any name or title to rename it.</p>
           <HoldButton
             className="mt-3 h-8 w-full rounded-full border border-control text-[13px] text-muted hover:text-text"
+            onConfirm={() => {
+              startFresh();
+              setOpen(false);
+              notify("Started fresh", { detail: "Kept your channels, stages, names and settings" });
+            }}
+          >
+            Hold to clear the sample data
+          </HoldButton>
+          <HoldButton
+            className="mt-2 h-8 w-full rounded-full text-[13px] text-faint hover:text-text"
             onConfirm={() => {
               resetSample();
               setOpen(false);

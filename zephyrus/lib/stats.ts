@@ -1,5 +1,5 @@
 import type { Channel, ChannelId, DayStat, PublishedVideo } from "./types";
-import { addDays, dayKey } from "./time";
+import { addDays, dayKey, fromKey, shortDate } from "./time";
 import { rng } from "./utils";
 
 /*
@@ -14,47 +14,6 @@ const CADENCE: Record<ChannelId, number> = { c1: 2, c2: 4, c3: 5, c4: 7 };
 const PEAK: Record<ChannelId, number> = { c1: 52000, c2: 26000, c3: 15000, c4: 19000 };
 const DECAY: Record<ChannelId, number> = { c1: 1.4, c2: 4, c3: 6, c4: 8 };
 
-const TITLES: Record<ChannelId, string[]> = {
-  c1: [
-    "Seneca on anger, in 50 seconds",
-    "Why Marcus Aurelius wrote to himself",
-    "Epictetus: what is up to you",
-    "The Stoic morning question",
-    "Zeno lost everything at sea",
-    "Cato never raised his voice",
-    "Memento mori is not morbid",
-    "The dichotomy of control, drawn",
-    "Seneca on borrowed time",
-    "Amor fati in one minute",
-    "Stoics on praise and blame",
-    "Why the Stoics journaled at night",
-  ],
-  c2: [
-    "The whale fall that fed a village",
-    "Sounds recorded 11 km down",
-    "The ghost net drifting since 1998",
-    "Why the deep sea glows blue",
-    "A submarine cable cut by a shark?",
-    "The lake under the ocean",
-    "Giant isopods don't need to eat",
-    "The wreck no one is allowed to visit",
-  ],
-  c3: [
-    "Your bank account is a loan to the bank",
-    "Why groceries cost more on a Sunday",
-    "The 50/30/20 rule, stress-tested",
-    "Index funds explained with a pizza",
-    "Lease or buy: the real numbers",
-    "Where a $40 sweater's money goes",
-  ],
-  c4: [
-    "The village that vanished in one night",
-    "Rome's fire brigade was a scam",
-    "The longest siege in history",
-    "Medieval cities had parking rules",
-    "The map that invented an island",
-  ],
-};
 
 export type ChannelStats = { channelId: ChannelId; days: DayStat[]; videos: PublishedVideo[] };
 
@@ -66,7 +25,6 @@ export function buildStats(channels: Channel[], today: string, span = 90): Chann
   return channels.map((ch, ci) => {
     const r = rng(1009 * (ci + 1));
     const videos: PublishedVideo[] = [];
-    const titles = TITLES[ch.id];
     let n = 0;
     for (let i = span - 1; i >= 0; i -= CADENCE[ch.id]) {
       const publishedOn = dates[i];
@@ -80,7 +38,8 @@ export function buildStats(channels: Channel[], today: string, span = 90): Chann
       videos.push({
         id: `${ch.id}-p${n}`,
         channelId: ch.id,
-        title: titles[n % titles.length] + (n >= titles.length ? ` (part ${Math.floor(n / titles.length) + 1})` : ""),
+        // Estimated history has no real titles; name each upload by its date.
+        title: `Upload of ${shortDate(fromKey(publishedOn))}`,
         publishedOn,
         daily,
         ctr: 0.035 + r() * 0.07,
@@ -104,6 +63,28 @@ export function buildStats(channels: Channel[], today: string, span = 90): Chann
         revenue: Math.round((views / 1000) * ch.rpm * 100) / 100,
       };
     });
+
+    // Your own figures win: scale the estimate so its last 30 days match them.
+    const own = ch.real;
+    if (own) {
+      const last = days.slice(-30);
+      const scale = (key: "views" | "subs" | "revenue", target?: number) => {
+        const sum = last.reduce((a, d) => a + d[key], 0);
+        return target && sum ? target / sum : 1;
+      };
+      const fv = scale("views", own.views30);
+      const fs = own.subs30 !== undefined ? scale("subs", own.subs30) : fv;
+      const fr = own.earnings30 !== undefined ? scale("revenue", own.earnings30) : fv;
+      if (fv !== 1 || fs !== 1 || fr !== 1) {
+        for (const d of days) {
+          d.views = Math.round(d.views * fv);
+          d.watchHours = Math.round(d.watchHours * fv);
+          d.subs = Math.round(d.subs * fs);
+          d.revenue = Math.round(d.revenue * fr * 100) / 100;
+        }
+        for (const v of videos) for (const k of Object.keys(v.daily)) v.daily[k] = Math.round(v.daily[k] * fv);
+      }
+    }
 
     return { channelId: ch.id, days, videos };
   });

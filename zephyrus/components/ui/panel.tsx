@@ -21,7 +21,7 @@ export function Panel({
   framed?: boolean;
   lit?: boolean;
   bodyClassName?: string;
-} & React.ComponentProps<"section">) {
+} & Omit<React.ComponentProps<"section">, "title">) {
   return (
     <section
       id={id}

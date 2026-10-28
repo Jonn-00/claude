@@ -1,4 +1,5 @@
 import type { CallEvent, Lead, Niche, Outcome, PlanBlock, State, Video } from "./types";
+import { DEFAULT_STAGES } from "./types";
 import { addDays, dayKey, fromKey } from "./time";
 import { rng } from "./utils";
 
@@ -14,17 +15,31 @@ const at = (day: string, h: number, m = 0) => {
   return d.toISOString();
 };
 
+/** Your four channels. Analytics stay estimates until you enter your own figures. */
+export const CHANNELS: State["channels"] = [
+  { id: "c1", name: "tikktokers", handle: "@tikktokers", niche: "", rpm: 0.09, avd: 0.5, subRate: 0.0011 },
+  { id: "c2", name: "sadaqtali6528", handle: "@sadaqtali6528", niche: "", rpm: 4.2, avd: 7.8, subRate: 0.0021 },
+  { id: "c3", name: "Truth Laboratory", handle: "@Truth-Laboratory-Official", niche: "", rpm: 9.5, avd: 9.4, subRate: 0.0026 },
+  { id: "c4", name: "CoolioCarZ", handle: "@CoolioCarZ", niche: "", rpm: 5.1, avd: 14.2, subRate: 0.0019 },
+];
+const OLD_SAMPLE_NAMES = ["Stoic Minutes", "Deep Sea Files", "Money Mechanics", "Lost History"];
+
+/** Brings data saved by an earlier version up to date without losing your edits. */
+export function migrate(s: State): State {
+  const channels = s.channels.map((c, i) => {
+    const fresh = CHANNELS.find((x) => x.id === c.id) ?? CHANNELS[i];
+    // Swap the old sample names for your channels; keep anything you renamed yourself.
+    return OLD_SAMPLE_NAMES.includes(c.name) ? { ...c, name: fresh.name, handle: fresh.handle, niche: "" } : { ...fresh, ...c, handle: c.handle ?? fresh.handle };
+  });
+  return { ...s, channels, stages: s.stages?.length ? s.stages : DEFAULT_STAGES.map((x) => ({ ...x })), labels: s.labels ?? {} };
+}
+
 export function seed(now = Date.now()): State {
   const today = dayKey(now);
   const nowDate = new Date(now);
   const r = rng(424242);
 
-  const channels: State["channels"] = [
-    { id: "c1", name: "Stoic Minutes", niche: "Philosophy shorts", rpm: 0.09, avd: 0.5, subRate: 0.0011 },
-    { id: "c2", name: "Deep Sea Files", niche: "Ocean mysteries", rpm: 4.2, avd: 7.8, subRate: 0.0021 },
-    { id: "c3", name: "Money Mechanics", niche: "Personal finance", rpm: 9.5, avd: 9.4, subRate: 0.0026 },
-    { id: "c4", name: "Lost History", niche: "History documentaries", rpm: 5.1, avd: 14.2, subRate: 0.0019 },
-  ];
+  const channels: State["channels"] = CHANNELS.map((c) => ({ ...c }));
 
   const v = (id: string, channelId: Video["channelId"], title: string, stage: Video["stage"], day: number, h: number, m = 0): Video => ({
     id,
@@ -196,5 +211,7 @@ export function seed(now = Date.now()): State {
     agenda,
     notes,
     settings: { dialTarget: 60, dealValue: 120 },
+    stages: DEFAULT_STAGES.map((x) => ({ ...x })),
+    labels: {},
   };
 }

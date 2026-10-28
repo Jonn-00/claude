@@ -19,6 +19,7 @@ import { Forecast } from "@/components/charts/forecast";
 import { CountUp } from "@/components/ui/count-up";
 import { notify, removeWithUndo } from "@/components/ui/notify";
 import { OutcomeButtons } from "@/components/ui/outcome-buttons";
+import { Editable } from "@/components/ui/editable";
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
 const STATUS_ORDER: LeadStatus[] = ["callback", "interested", "demo", "new", "won", "lost"];
@@ -339,11 +340,16 @@ function Agency() {
               <li key={l.id} id={`lead-m-${l.id}`} className={cn("py-3", focus === l.id && "-mx-2 rounded-[12px] bg-raised px-2")}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-[14px]">{l.business}</div>
-                    <div className="truncate text-[12px] text-faint">
-                      {l.contact} · {NICHE_LABEL[l.niche]} · {l.city}
+                    <div className="truncate text-[14px]">
+                      <Editable value={l.business} label="Business" onSave={(v) => actions.updateLead(l.id, { business: v })} />
                     </div>
-                    <div className="num text-[12px] text-muted select-all">{l.phone}</div>
+                    <div className="truncate text-[12px] text-faint">
+                      <Editable value={l.contact} label="Contact" placeholder="Add contact" onSave={(v) => actions.updateLead(l.id, { contact: v })} allowEmpty /> · {NICHE_LABEL[l.niche]} ·{" "}
+                      <Editable value={l.city} label="City" placeholder="Add city" onSave={(v) => actions.updateLead(l.id, { city: v })} allowEmpty />
+                    </div>
+                    <div className="num text-[12px] text-muted">
+                      <Editable value={l.phone} label="Phone" placeholder="Add phone" onSave={(v) => actions.updateLead(l.id, { phone: v })} allowEmpty />
+                    </div>
                   </div>
                   <a href={`tel:${l.phone.replace(/\s/g, "")}`} className="press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-control px-3 text-[13px]">
                     <Phone size={13} /> Call
@@ -419,12 +425,31 @@ function LeadRow({ l, now, focused }: { l: Lead; now: number; focused: boolean }
   return (
     <tr id={`lead-${l.id}`} className={cn("group border-t border-rule align-middle", focused && "bg-raised")}>
       <td className="max-w-0 py-2.5 pl-2">
-        <div className="truncate">{l.business}</div>
+        <div className="truncate">
+          <Editable value={l.business} label="Business" onSave={(v) => actions.updateLead(l.id, { business: v })} />
+        </div>
         <div className="truncate text-[12px] text-faint">
-          {l.contact} · {l.city} · <span className="num select-all">{l.phone}</span>
+          <Editable value={l.contact} label="Contact" placeholder="Add contact" onSave={(v) => actions.updateLead(l.id, { contact: v })} allowEmpty /> ·{" "}
+          <Editable value={l.city} label="City" placeholder="Add city" onSave={(v) => actions.updateLead(l.id, { city: v })} allowEmpty /> ·{" "}
+          <span className="num">
+            <Editable value={l.phone} label="Phone" placeholder="Add phone" onSave={(v) => actions.updateLead(l.id, { phone: v })} allowEmpty />
+          </span>
         </div>
       </td>
-      <td className="py-2.5 whitespace-nowrap text-muted">{NICHE_LABEL[l.niche]}</td>
+      <td className="py-2.5 whitespace-nowrap text-muted">
+        <select
+          value={l.niche}
+          onChange={(e) => actions.updateLead(l.id, { niche: e.target.value as Niche })}
+          aria-label={`Niche for ${l.business}`}
+          className="-mx-1 cursor-pointer appearance-none rounded-[6px] bg-transparent px-1 text-inherit outline-none hover:bg-raised"
+        >
+          {(Object.keys(NICHE_LABEL) as Niche[]).map((n) => (
+            <option key={n} value={n} className="bg-raised text-text">
+              {NICHE_LABEL[n]}
+            </option>
+          ))}
+        </select>
+      </td>
       <td className="py-2.5">
         <select
           value={l.status}

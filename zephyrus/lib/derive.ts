@@ -1,5 +1,4 @@
 import type { CallEvent, Lead, Niche, State, Video } from "./types";
-import { STAGES } from "./types";
 import { addDays, dayKey } from "./time";
 
 export type CallCounts = { dials: number; reached: number; interested: number; demos: number; won: number };
@@ -24,12 +23,11 @@ export const monthStart = (today: string) => today.slice(0, 8) + "01";
 export type VideoUrgency = "late" | "today" | "ok" | "missed";
 
 export function videoUrgency(v: Video, now: number): VideoUrgency {
-  const idx = STAGES.indexOf(v.stage);
   const due = new Date(v.publishAt).getTime();
   if (v.stage === "live") return "ok";
   if (v.stage === "scheduled") return due < now ? "missed" : "ok";
   if (due < now) return "late";
-  if (dayKey(due) === dayKey(now) && idx < STAGES.indexOf("scheduled")) return "today";
+  if (dayKey(due) === dayKey(now)) return "today";
   return "ok";
 }
 

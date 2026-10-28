@@ -9,6 +9,7 @@ import { addDays, dayKey, fromKey, hhmm, minutesOf, weekday } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
 import { notify, removeWithUndo } from "@/components/ui/notify";
+import { EditableTitle } from "@/components/ui/editable-title";
 
 const FROM = 6 * 60;
 const TO = 24 * 60;
@@ -109,13 +110,13 @@ export function DayColumn({
         {draft && newOpen && (
           <BlockEditor
             top={Y(draft.end) + 4}
-            initial={{ title: "", kind: "youtube" }}
+            initial={{ title: "", kind: "youtube", start: draft.start, end: draft.end }}
             onCancel={() => {
               setDraft(null);
               setNewOpen(false);
             }}
-            onSave={(title, kind) => {
-              actions.addBlock({ date, start: draft.start, end: draft.end, title, kind });
+            onSave={(title, kind, start, end) => {
+              actions.addBlock({ date, start, end, title, kind });
               setDraft(null);
               setNewOpen(false);
             }}
@@ -236,10 +237,10 @@ function BlockView({ b, pitch, live, past, open, setOpen }: { b: PlanBlock; pitc
       {open && (
         <BlockEditor
           top={top + height + 4}
-          initial={{ title: b.title, kind: b.kind }}
+          initial={{ title: b.title, kind: b.kind, start: b.start, end: b.end }}
           onCancel={() => setOpen(false)}
-          onSave={(title, kind) => {
-            actions.updateBlock(b.id, { title, kind });
+          onSave={(title, kind, start, end) => {
+            actions.updateBlock(b.id, { title, kind, start, end });
             setOpen(false);
           }}
           onDelete={() => {
@@ -260,13 +261,16 @@ function BlockEditor({
   onDelete,
 }: {
   top: number;
-  initial: { title: string; kind: BlockKind };
-  onSave: (title: string, kind: BlockKind) => void;
+  initial: { title: string; kind: BlockKind; start: number; end: number };
+  onSave: (title: string, kind: BlockKind, start: number, end: number) => void;
   onCancel: () => void;
   onDelete?: () => void;
 }) {
   const [title, setTitle] = useState(initial.title);
   const [kind, setKind] = useState<BlockKind>(initial.kind);
+  const [start, setStart] = useState(hhmm(initial.start));
+  const [end, setEnd] = useState(hhmm(initial.end));
+  const toMins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   const box = useRef<HTMLFormElement>(null);
   useEffect(() => {
     const off = (e: PointerEvent) => {
@@ -284,7 +288,9 @@ function BlockEditor({
       data-editor
       onSubmit={(e) => {
         e.preventDefault();
-        if (title.trim()) onSave(title.trim(), kind);
+        const a = toMins(start);
+        const b = Math.max(a + 15, toMins(end));
+        if (title.trim()) onSave(title.trim(), kind, a, Math.min(24 * 60, b));
       }}
       onKeyDown={(e) => e.key === "Escape" && onCancel()}
       onPointerDown={(e) => e.stopPropagation()}
@@ -299,6 +305,10 @@ function BlockEditor({
         aria-label="Block title"
         className="h-8 w-full rounded-[8px] border border-control bg-surface px-2 text-[13px] outline-none focus:border-sand"
       />
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <input type="time" value={start} onChange={(e) => e.target.value && setStart(e.target.value)} aria-label="Starts" className="num h-8 rounded-[8px] border border-control bg-surface px-1.5 text-[12px] outline-none focus:border-sand" />
+        <input type="time" value={end} onChange={(e) => e.target.value && setEnd(e.target.value)} aria-label="Ends" className="num h-8 rounded-[8px] border border-control bg-surface px-1.5 text-[12px] outline-none focus:border-sand" />
+      </div>
       <div className="mt-2 flex items-center gap-1">
         {(Object.keys(KIND_LABEL) as BlockKind[]).map((k) => (
           <button
@@ -316,6 +326,9 @@ function BlockEditor({
             <Trash2 size={13} />
           </button>
         )}
+        <button type="submit" className={cn("press h-7 rounded-full bg-text px-3 text-[12px] font-medium text-ground", !onDelete && "ml-auto")}>
+          Save
+        </button>
       </div>
     </form>
   );
@@ -337,7 +350,7 @@ export function HourlyPlanner({ state, now }: { state: State; now: number }) {
   const isToday = date === dayKey(now);
   return (
     <Panel
-      title="Hourly"
+      title={<EditableTitle state={state} k="hourly" fallback="Hourly" />}
       aside={
         <div className="flex items-center gap-1">
           <button className="press grid size-7 place-items-center rounded-full hover:bg-raised" aria-label="Previous day" onClick={() => setDate(addDays(date, -1))}>

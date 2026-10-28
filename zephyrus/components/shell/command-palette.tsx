@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CornerDownLeft, Search } from "lucide-react";
 import type { State } from "@/lib/types";
-import { NICHE_LABEL, STAGE_LABEL } from "@/lib/types";
+import { NICHE_LABEL } from "@/lib/types";
+import { stageLabel } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 
 type Item = { id: string; group: string; label: string; hint?: string; run: () => void };
@@ -29,7 +30,7 @@ export function CommandPalette({ state, onClose, onQuickAdd }: { state: State; o
       { id: "p-no", group: "Go to", label: "Notes", run: go("/notes") },
       { id: "a-add", group: "Do", label: "Quick add a reminder, block, lead, idea or note", hint: "N", run: onQuickAdd },
       { id: "a-log", group: "Do", label: "Log a dial", run: go("/agency#log") },
-      ...state.videos.map((v) => ({ id: v.id, group: "Videos", label: v.title, hint: `${ch[v.channelId]} · ${STAGE_LABEL[v.stage]}`, run: go("/channels#production") })),
+      ...state.videos.map((v) => ({ id: v.id, group: "Videos", label: v.title, hint: `${ch[v.channelId]} · ${stageLabel(state, v.stage)}`, run: go("/channels#production") })),
       ...state.leads.map((l) => ({ id: l.id, group: "Leads", label: l.business, hint: `${l.contact} · ${NICHE_LABEL[l.niche]}`, run: go(`/agency?lead=${l.id}`) })),
       ...state.notes.map((n) => ({ id: n.id, group: "Notes", label: n.text.slice(0, 80), run: go("/notes") })),
     ];

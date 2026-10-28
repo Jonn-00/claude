@@ -33,6 +33,15 @@ For a production build: `npm run build && npm start`.
 - **Charts:** hover or drag across any line, bar, wave or radar to read values. Channel tabs, the niche switch on "When people pick up" and the channel tabs on Channels all redraw in place.
 - **Needs-you glow:** anything late, due today or overdue has a warm light that leans toward your cursor.
 
+## Editing
+
+Almost everything is edited where it sits: click a name or title (stage names, card titles, video titles, reminders, lead names, phone numbers, the dial target) to change it; Enter saves, Esc cancels.
+
+- **Production line:** click a video to edit its title, channel, stage and go-live time. Hover a column for its menu: add a video there, rename the stage, add a stage after it, or remove it (its videos move to the stage before; Undo puts it all back). Scheduled and Live can be renamed but not removed.
+- **Channels:** name, handle and niche on the Channels page, with links to the channel on YouTube and Social Blade. Type your own numbers (subscribers, views, subs gained, earnings for the last 30 days) and the charts scale to them; until then they're estimates.
+- **Sidebar:** the button next to the logo (or `[`) folds it to icons.
+- **Settings:** hold to clear the sample data (keeps your channels, stages, names and settings), or hold to reset everything to the sample.
+
 ## Keys
 
 | Key | Does |
@@ -40,6 +49,7 @@ For a production build: `npm run build && npm start`.
 | `⌘K` / `Ctrl K` | Search videos, leads and notes, or jump to a page |
 | `N` (or `⌘J`) | Quick add: reminder, planner block, lead, video idea or note |
 | `A` | Open or fold the agenda on Today |
+| `[` | Fold or unfold the sidebar |
 | `Esc` | Close whatever is open |
 
 ## Your data

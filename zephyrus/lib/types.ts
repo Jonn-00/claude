@@ -10,19 +10,29 @@ export type Channel = {
   avd: number;
   /** New subscribers per view. */
   subRate: number;
+  /** YouTube handle, e.g. "@tikktokers". */
+  handle?: string;
+  /** Your own figures (from Social Blade or YouTube Studio); they override the estimates. */
+  real?: { subscribers?: number; views30?: number; subs30?: number; earnings30?: number };
 };
 
-export const STAGES = ["idea", "script", "voice", "edit", "thumbnail", "scheduled", "live"] as const;
-export type Stage = (typeof STAGES)[number];
-export const STAGE_LABEL: Record<Stage, string> = {
-  idea: "Idea",
-  script: "Script",
-  voice: "Voiceover",
-  edit: "Edit",
-  thumbnail: "Thumbnail",
-  scheduled: "Scheduled",
-  live: "Live",
-};
+/**
+ * Production stages are yours to rename, add and remove. Two ids carry
+ * meaning: "scheduled" (done, waiting to publish) and "live". Everything
+ * before them counts as in production.
+ */
+export type Stage = string;
+export type StageDef = { id: Stage; label: string };
+export const DEFAULT_STAGES: StageDef[] = [
+  { id: "idea", label: "Idea" },
+  { id: "script", label: "Script" },
+  { id: "voice", label: "Voiceover" },
+  { id: "edit", label: "Edit" },
+  { id: "thumbnail", label: "Thumbnail" },
+  { id: "scheduled", label: "Scheduled" },
+  { id: "live", label: "Live" },
+];
+export const FIXED_STAGES = ["scheduled", "live"];
 
 /** A video moving through production. Published history lives in the stats. */
 export type Video = {
@@ -112,4 +122,7 @@ export type State = {
   agenda: Record<string, AgendaEntry>;
   notes: Note[];
   settings: Settings;
+  stages: StageDef[];
+  /** Your names for panels and sections, by key. */
+  labels: Record<string, string>;
 };

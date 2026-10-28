@@ -3,14 +3,22 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { actions } from "@/lib/store";
-import type { State } from "@/lib/types";
+import type { BlockKind, State } from "@/lib/types";
 import { KIND_LABEL } from "@/lib/types";
 import { dayKey, fromKey, hhmm, minutesOf, relDay } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
 import { removeWithUndo } from "@/components/ui/notify";
+import { Editable } from "@/components/ui/editable";
+import { EditableTitle } from "@/components/ui/editable-title";
 
 /** Due today or overdue, plus anything ticked off today. Overdue is lit. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 export function Reminders({ state, now }: { state: State; now: number }) {
   const today = dayKey(now);
   const [adding, setAdding] = useState(false);
@@ -39,7 +47,7 @@ export function Reminders({ state, now }: { state: State; now: number }) {
 
   return (
     <Panel
-      title="Reminders"
+      title={<EditableTitle state={state} k="reminders" fallback="Reminders" />}
       aside={
         <span className="num">
           {open} open{doneToday ? ` · ${doneToday} done` : ""}
@@ -81,10 +89,32 @@ export function Reminders({ state, now }: { state: State; now: number }) {
                     r.done ? "text-faint decoration-faint" : "decoration-transparent",
                   )}
                 >
-                  {r.title}
+                  <Editable value={r.title} label="Reminder" onSave={(v) => actions.updateReminder(r.id, { title: v })} inputClassName="text-[13px] leading-[18px]" />
                 </div>
-                <div className={cn("num text-[12px] leading-4", overdue ? "text-ember-soft" : "text-faint")}>
-                  {relDay(r.due, now)} · {KIND_LABEL[r.kind]}
+                <div className={cn("num flex items-center gap-1 text-[12px] leading-4", overdue ? "text-ember-soft" : "text-faint")}>
+                  <label className="relative -mx-1 cursor-pointer rounded-[6px] px-1 hover:bg-active/60" title="Change the time">
+                    {relDay(r.due, now)}
+                    <input
+                      type="datetime-local"
+                      aria-label={`When: ${r.title}`}
+                      value={toLocalInput(r.due)}
+                      onChange={(e) => e.target.value && actions.updateReminder(r.id, { due: new Date(e.target.value).toISOString() })}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                  </label>
+                  ·
+                  <select
+                    value={r.kind}
+                    aria-label={`Area: ${r.title}`}
+                    onChange={(e) => actions.updateReminder(r.id, { kind: e.target.value as BlockKind })}
+                    className="-mx-1 cursor-pointer appearance-none rounded-[6px] bg-transparent px-1 text-inherit outline-none hover:bg-active/60"
+                  >
+                    {(Object.keys(KIND_LABEL) as BlockKind[]).map((k) => (
+                      <option key={k} value={k} className="bg-raised text-text">
+                        {KIND_LABEL[k]}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { actions } from "@/lib/store";
 import type { BlockKind, ChannelId, Niche, State } from "@/lib/types";
 import { KIND_LABEL, NICHE_LABEL } from "@/lib/types";
+import { stagesOf } from "@/lib/stages";
 import { addDays, dayKey, fromKey, hhmm, minutesOf } from "@/lib/time";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function QuickAdd({ state, onClose }: { state: State; onClose: () => void
     } else if (kind === "video") {
       const d = fromKey(date);
       d.setHours(17, 0, 0, 0);
-      actions.addVideo({ channelId: channel, title: t, stage: "idea", publishAt: d.toISOString() });
+      actions.addVideo({ channelId: channel, title: t, stage: stagesOf(state)[0].id, publishAt: d.toISOString() });
     } else {
       actions.addNote(t);
     }

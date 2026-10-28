@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { actions, useAppState, useStats } from "@/lib/store";
 import { sumDays, viewsIn } from "@/lib/stats";
 import type { ChannelId, DayStat } from "@/lib/types";
-import { STAGE_LABEL } from "@/lib/types";
+import { stageLabel } from "@/lib/stages";
 import { videoUrgency } from "@/lib/derive";
 import { fromKey, relDay, shortDate, useNow } from "@/lib/time";
 import { TONE } from "@/lib/tones";
@@ -17,8 +17,8 @@ import { Segmented } from "@/components/ui/segmented";
 import { LineChart } from "@/components/charts/line-chart";
 import { Treemap } from "@/components/charts/treemap";
 import { Radar } from "@/components/charts/radar";
+import { Editable } from "@/components/ui/editable";
 import { ProductionLine } from "@/components/today/production-line";
-import { Button } from "@/components/ui/button";
 import { field } from "@/components/shell/quick-add";
 
 type Range = "7" | "28" | "90";
@@ -47,7 +47,6 @@ export default function ChannelsPage() {
   const [sel, setSel] = useState<ChannelId>("c1");
   const [range, setRange] = useState<Range>("28");
   const [metric, setMetric] = useState<Metric>("views");
-  const [editing, setEditing] = useState(false);
   const n = Number(range);
 
   const st = stats.find((x) => x.channelId === sel)!;
@@ -71,7 +70,8 @@ export default function ChannelsPage() {
     const a = sumDays(cur, m);
     const b = sumDays(prev, m);
     const ch = change(a, b);
-    return { label: METRIC[m].unit + (m === "revenue" ? " (USD)" : ""), value: METRIC[m].fmt(a), sub: ch.text, tone: ch.tone };
+    const total = m === "subs" && channel.real?.subscribers !== undefined ? `${fmt(channel.real.subscribers)} total · ` : "";
+    return { label: METRIC[m].unit + (m === "revenue" ? " (USD)" : ""), value: METRIC[m].fmt(a), sub: total + ch.text, tone: ch.tone };
   });
 
   const points = cur.map((d: DayStat) => ({ key: d.date, label: shortDate(fromKey(d.date)), value: d[metric] }));
@@ -122,7 +122,6 @@ export default function ChannelsPage() {
             aria-selected={c.id === sel}
             onClick={() => {
               setSel(c.id);
-              setEditing(false);
             }}
             className={cn("press flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[14px]", c.id === sel ? "bg-raised text-text" : "text-muted hover:bg-raised/50 hover:text-text")}
           >
@@ -162,37 +161,79 @@ export default function ChannelsPage() {
           <div className="mt-3 flex flex-1 flex-col">
             <LineChart points={points} marks={marks} height="fill" unit={METRIC[metric].unit} format={METRIC[metric].fmt} ariaLabel={`${channel.name} ${METRIC[metric].label} per day`} />
           </div>
-          <p className="mt-2 text-[12px] text-faint">Ticks under the line are upload days. Sample data through yesterday, until YouTube is connected.</p>
+          <p className="mt-2 text-[12px] text-faint">
+            Ticks under the line are upload days.{" "}
+            {channel.real?.views30 ? "Scaled to the numbers you entered; the day-to-day shape is still an estimate." : "Estimates until you add your numbers under About this channel."}
+          </p>
         </Panel>
 
         <Panel
           title="About this channel"
           aside={
-            !editing && (
-              <Button variant="quiet" size="sm" onClick={() => setEditing(true)}>
-                <Pencil size={13} /> Rename
-              </Button>
+            channel.handle && (
+              <span className="flex items-center gap-1">
+                <a href={`https://www.youtube.com/${channel.handle}`} target="_blank" rel="noreferrer" className="press inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12px] text-muted hover:bg-raised hover:text-text">
+                  YouTube <ArrowUpRight size={12} />
+                </a>
+                <a
+                  href={`https://socialblade.com/youtube/handle/${channel.handle.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="press inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12px] text-muted hover:bg-raised hover:text-text"
+                >
+                  Social Blade <ArrowUpRight size={12} />
+                </a>
+              </span>
             )
           }
         >
-          {editing ? (
-            <RenameForm key={sel} id={sel} name={channel.name} niche={channel.niche} onDone={() => setEditing(false)} />
-          ) : (
-            <dl className="divide-y divide-rule text-[13px]">
-              {[
-                ["Name", channel.name],
-                ["Niche", channel.niche],
+          <dl key={sel} className="divide-y divide-rule text-[13px]">
+            {(
+              [
+                ["Name", <Editable key="n" value={channel.name} label="Channel name" onSave={(v) => actions.updateChannel(sel, { name: v })} />],
+                ["Handle", <Editable key="h" value={channel.handle ?? ""} label="YouTube handle" placeholder="@handle" allowEmpty onSave={(v) => actions.updateChannel(sel, { handle: v ? (v.startsWith("@") ? v : "@" + v) : undefined })} />],
+                ["Niche", <Editable key="ni" value={channel.niche} label="Niche" placeholder="Add a niche" allowEmpty onSave={(v) => actions.updateChannel(sel, { niche: v })} />],
                 ["Uploads, last 90 days", fmt(st.videos.length)],
-                ["Avg. view duration", `${channel.avd >= 1 ? channel.avd.toFixed(1) + " min" : Math.round(channel.avd * 60) + " s"}`],
-                ["RPM", `$${channel.rpm.toFixed(2)}`],
-              ].map(([k, v]) => (
-                <div key={k} className="flex h-10 items-center justify-between gap-3">
-                  <dt className="text-muted">{k}</dt>
-                  <dd className="num truncate text-right">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
+              ] as [string, React.ReactNode][]
+            ).map(([k, v]) => (
+              <div key={k} className="flex min-h-10 items-center justify-between gap-3">
+                <dt className="shrink-0 text-muted">{k}</dt>
+                <dd className="num min-w-0 truncate text-right">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <h3 className="mt-5 mb-1 text-[13px] text-muted">Your numbers</h3>
+          <p className="mb-2 text-[12px] leading-[17px] text-faint">
+            Copy these from Social Blade or YouTube Studio. Until you do, every chart here is an estimate; once you do, they scale to match.
+          </p>
+          <div key={sel + "-real"} className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["subscribers", "Subscribers"],
+                ["views30", "Views, last 30 days"],
+                ["subs30", "Subs gained, 30 days"],
+                ["earnings30", "Earnings, 30 days (USD)"],
+              ] as const
+            ).map(([k, l]) => (
+              <label key={k} className="grid gap-1 text-[11px] text-faint">
+                {l}
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  defaultValue={channel.real?.[k] ?? ""}
+                  placeholder="—"
+                  onBlur={(e) => {
+                    const raw = e.target.value.trim();
+                    const n = raw === "" ? undefined : Math.max(0, Number(raw));
+                    if (n !== channel.real?.[k]) actions.updateChannel(sel, { real: { ...channel.real, [k]: n } });
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                  className={field + " num h-9 text-right"}
+                />
+              </label>
+            ))}
+          </div>
           <h3 className="mt-5 mb-1 text-[13px] text-muted">Coming up</h3>
           {upcoming.length === 0 ? (
             <p className="rounded-[10px] border border-dashed border-border px-3 py-2.5 text-[13px] text-faint">Nothing in production for this channel.</p>
@@ -203,7 +244,7 @@ export default function ChannelsPage() {
                 return (
                   <li key={v.id} className="flex min-h-11 items-center gap-3 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-[13px]">{v.title}</span>
-                    <span className="shrink-0 text-[12px] text-faint">{STAGE_LABEL[v.stage]}</span>
+                    <span className="shrink-0 text-[12px] text-faint">{stageLabel(s, v.stage)}</span>
                     <span className={cn("num shrink-0 text-right text-[12px] whitespace-nowrap", u === "ok" ? "text-muted" : "text-ember-soft")}>{relDay(v.publishAt, now)}</span>
                   </li>
                 );
@@ -242,7 +283,7 @@ export default function ChannelsPage() {
         </Panel>
       </div>
 
-      <Panel className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days</span>}>
+      <Panel className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days{channel.real?.views30 ? "" : " · estimated"}</span>}>
         <div className="relative -mx-1 overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-[13px]">
             <thead>
@@ -290,38 +331,5 @@ export default function ChannelsPage() {
         <ProductionLine state={s} now={now} maxPerStage={99} />
       </div>
     </div>
-  );
-}
-
-function RenameForm({ id, name, niche, onDone }: { id: string; name: string; niche: string; onDone: () => void }) {
-  const [a, setA] = useState(name);
-  const [b, setB] = useState(niche);
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (a.trim()) actions.renameChannel(id, a.trim(), b.trim());
-        onDone();
-      }}
-      onKeyDown={(e) => e.key === "Escape" && onDone()}
-      className="grid gap-2"
-    >
-      <label className="text-[12px] text-faint">
-        Channel name
-        <input autoFocus value={a} onChange={(e) => setA(e.target.value)} className={field + " mt-1"} />
-      </label>
-      <label className="text-[12px] text-faint">
-        Niche
-        <input value={b} onChange={(e) => setB(e.target.value)} className={field + " mt-1"} />
-      </label>
-      <div className="mt-1 flex justify-end gap-2">
-        <Button variant="quiet" size="sm" onClick={onDone}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" size="sm">
-          Save
-        </Button>
-      </div>
-    </form>
   );
 }
