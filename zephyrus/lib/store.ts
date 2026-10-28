@@ -1,0 +1,165 @@
+"use client";
+
+import { useMemo, useSyncExternalStore } from "react";
+import { seed } from "./seed";
+import { buildStats } from "./stats";
+import { dayKey } from "./time";
+import type { State } from "./types";
+import { uid } from "./utils";
+
+const KEY = "zephyrus:v1";
+
+let state: State | null = null;
+const listeners = new Set<() => void>();
+
+function load(): State {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as State;
+      if (parsed.version === 1) return parsed;
+    }
+  } catch {
+    /* private window or blocked storage: run from the sample */
+  }
+  return seed();
+}
+
+function save(s: State) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* ignore: the session still works, it just won't persist */
+  }
+}
+
+function get(): State {
+  if (!state) state = load();
+  return state;
+}
+
+export function setState(fn: (s: State) => State) {
+  state = fn(get());
+  save(state);
+  listeners.forEach((l) => l());
+}
+
+function subscribe(l: () => void) {
+  listeners.add(l);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === KEY) {
+      state = load();
+      l();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(l);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/** null until the browser has loaded saved data (avoids SSR mismatches). */
+export function useAppState(): State | null {
+  return useSyncExternalStore(subscribe, get, () => null);
+}
+
+export function useStats(s: State | null) {
+  const today = dayKey(Date.now());
+  return useMemo(() => (s ? buildStats(s.channels, today) : []), [s?.channels, today]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+export function resetSample() {
+  setState(() => seed());
+}
+
+/* ---------------- actions ---------------- */
+
+export const actions = {
+  moveVideo(id: string, dir: 1 | -1) {
+    setState((s) => {
+      const order = ["idea", "script", "voice", "edit", "thumbnail", "scheduled", "live"] as const;
+      return {
+        ...s,
+        videos: s.videos.map((v) => {
+          if (v.id !== id) return v;
+          const i = Math.max(0, Math.min(order.length - 1, order.indexOf(v.stage) + dir));
+          const stage = order[i];
+          return { ...v, stage, liveAt: stage === "live" ? new Date().toISOString() : undefined };
+        }),
+      };
+    });
+  },
+  addVideo(v: Omit<State["videos"][number], "id">) {
+    setState((s) => ({ ...s, videos: [...s.videos, { ...v, id: uid() }] }));
+  },
+  removeVideo(id: string) {
+    setState((s) => ({ ...s, videos: s.videos.filter((v) => v.id !== id) }));
+  },
+  renameChannel(id: string, name: string, niche: string) {
+    setState((s) => ({ ...s, channels: s.channels.map((c) => (c.id === id ? { ...c, name, niche } : c)) }));
+  },
+  logCall(e: Omit<State["calls"][number], "id" | "at">) {
+    const id = uid();
+    setState((s) => {
+      const leads = e.leadId
+        ? s.leads.map((l) => {
+            if (l.id !== e.leadId) return l;
+            const status =
+              e.outcome === "won" ? "won" : e.outcome === "demo" ? "demo" : e.outcome === "interested" ? "interested" : l.status === "new" ? "callback" : l.status;
+            return { ...l, status, nextAt: e.outcome === "won" ? undefined : l.nextAt } as typeof l;
+          })
+        : s.leads;
+      return { ...s, leads, calls: [...s.calls, { ...e, id, at: new Date().toISOString() }] };
+    });
+    return id;
+  },
+  undoCall(id: string) {
+    setState((s) => ({ ...s, calls: s.calls.filter((c) => c.id !== id) }));
+  },
+  updateLead(id: string, patch: Partial<State["leads"][number]>) {
+    setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
+  },
+  addLead(l: Omit<State["leads"][number], "id">) {
+    setState((s) => ({ ...s, leads: [{ ...l, id: uid() }, ...s.leads] }));
+  },
+  removeLead(id: string) {
+    setState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== id) }));
+  },
+  addBlock(b: Omit<State["blocks"][number], "id">) {
+    setState((s) => ({ ...s, blocks: [...s.blocks, { ...b, id: uid() }] }));
+  },
+  updateBlock(id: string, patch: Partial<State["blocks"][number]>) {
+    setState((s) => ({ ...s, blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) }));
+  },
+  removeBlock(id: string) {
+    setState((s) => ({ ...s, blocks: s.blocks.filter((b) => b.id !== id) }));
+  },
+  addReminder(r: Omit<State["reminders"][number], "id" | "done">) {
+    setState((s) => ({ ...s, reminders: [...s.reminders, { ...r, id: uid(), done: false }] }));
+  },
+  toggleReminder(id: string) {
+    setState((s) => ({ ...s, reminders: s.reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r)) }));
+  },
+  removeReminder(id: string) {
+    setState((s) => ({ ...s, reminders: s.reminders.filter((r) => r.id !== id) }));
+  },
+  setAgenda(date: string, patch: Partial<State["agenda"][string]>) {
+    setState((s) => ({
+      ...s,
+      agenda: { ...s.agenda, [date]: { ...{ shipped: "", stuck: "", tomorrow: "" }, ...s.agenda[date], ...patch } },
+    }));
+  },
+  addNote(text: string) {
+    setState((s) => ({ ...s, notes: [{ id: uid(), createdAt: new Date().toISOString(), text }, ...s.notes] }));
+  },
+  updateNote(id: string, text: string) {
+    setState((s) => ({ ...s, notes: s.notes.map((n) => (n.id === id ? { ...n, text } : n)) }));
+  },
+  removeNote(id: string) {
+    setState((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== id) }));
+  },
+  setSettings(patch: Partial<State["settings"]>) {
+    setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
+  },
+};

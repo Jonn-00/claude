@@ -1,8 +1,8 @@
 {
  "version": 1,
  "kind": "app",
- "at": "2026-10-28T04:26:36.603Z",
- "seed": 1564102002,
+ "at": "2026-10-28T05:03:53.276Z",
+ "seed": 11764638,
  "input": {
   "kind": "workspace",
   "brief": "one-person ops home: several YouTube automation channels (uploads, analytics, reminders) plus a cold-calling agency selling AI ads to real-estate agents and car detailers; daily agenda notes and hourly planner",
@@ -12,7 +12,8 @@
    "analytics"
   ],
   "keep": [
-   "palette"
+   "palette",
+   "type"
   ],
   "style": "true-black-flat"
  },
