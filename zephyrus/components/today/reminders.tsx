@@ -47,6 +47,8 @@ export function Reminders({ state, now }: { state: State; now: number }) {
 
   return (
     <Panel
+      tone="glass"
+      index={4}
       title={<EditableTitle state={state} k="reminders" fallback="Reminders" />}
       aside={
         <span className="num">

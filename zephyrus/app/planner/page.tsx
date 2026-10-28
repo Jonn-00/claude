@@ -74,7 +74,7 @@ export default function PlannerPage() {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 pt-4 pb-3">
           <div className="flex h-2 min-w-[200px] flex-1 overflow-hidden rounded-full bg-raised" aria-hidden>
             {totals.map((t) => (
-              <div key={t.k} className={cn("h-full border-r-2 border-surface last:border-r-0", t.k === "youtube" ? "bg-sand" : t.k === "agency" ? "bg-dune" : "bg-raised hatch")} style={{ width: `${(t.m / all) * 100}%` }} />
+              <div key={t.k} className={cn("h-full border-r-2 border-surface last:border-r-0", t.k === "youtube" ? "bg-sand" : t.k === "agency" ? "bg-dune" : "relative bg-raised hatch")} style={{ width: `${(t.m / all) * 100}%` }} />
             ))}
           </div>
           <div className="flex items-center gap-4 text-[12px] text-faint">

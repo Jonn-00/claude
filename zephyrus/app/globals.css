@@ -231,7 +231,15 @@ textarea::placeholder {
 }
 
 /* Personal planner blocks are hatched, so kinds read apart without hue. */
-.hatch {
+/* The texture sits on its own layer so the block itself keeps one flat fill. */
+.hatch { isolation: isolate; }
+.hatch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
   background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 7px); /* taste-skill-ignore: a hatch pattern that encodes block kind, not a colour fade */
 }
 
@@ -259,4 +267,99 @@ textarea::placeholder {
   .pop { @starting-style { transform: none; } }
   .frame > .corner { transition: opacity 160ms ease; }
   .frame:hover > .corner { transform: none !important; }
+}
+
+/*
+  Toned cards, after the Finance Bento: a gradient field (light at the top,
+  saturated through the middle, lifting again at the foot) with a dark,
+  heavily blurred core so text sits on depth, plus a 1px inner rim. Glass
+  is a frosted pane over the page's warm light. Inside a toned card the
+  greys and lines switch to white at set alphas so everything stays legible.
+*/
+.tone {
+  border-radius: 24px;
+  border-color: rgb(255 255 255 / 0.1) !important;
+  background: transparent !important;
+  --muted: rgb(255 255 255 / 0.78);
+  --faint: rgb(255 255 255 / 0.6);
+  --text: #ffffff;
+  --raised: rgb(0 0 0 / 0.22);
+  --active: rgb(0 0 0 / 0.32);
+  --border: rgb(255 255 255 / 0.12);
+  --rule: rgb(255 255 255 / 0.1);
+  --control: rgb(255 255 255 / 0.3);
+  --grid: rgb(255 255 255 / 0.14);
+  --surface: rgb(0 0 0 / 0.35);
+  /* Signals stay readable on a coloured field: lighter ember, lighter mint. */
+  --ember-soft: #ffe0c9;
+  --positive: #bff5d9;
+  --negative: #ffd1d8;
+  transition: opacity 600ms var(--ease-out), transform 700ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 60ms);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+}
+.tone > .tone-layers {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.tone > .tone-layers > .tone-field {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--t-top) 0%, var(--t-base) 36%, var(--t-base) 74%, var(--t-bottom) 100%); /* taste-skill-ignore: the requested Finance Bento card field */
+}
+.tone > .tone-layers > .tone-core {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 16%;
+  bottom: -6%;
+  border-radius: 90px;
+  background: var(--t-core);
+  filter: blur(60px);
+}
+.tone > .tone-layers::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+.tone > :not(.tone-layers) {
+  position: relative;
+  z-index: 1;
+}
+.tone-ember { --t-top: #f29a66; --t-base: #d9541c; --t-bottom: #ef7a40; --t-core: #2a0c03; }
+.tone-copper { --t-top: #dc9a70; --t-base: #b8653a; --t-bottom: #d6895c; --t-core: #1d0b05; }
+.tone-graphite { --t-top: #8a7d72; --t-base: #3b322b; --t-bottom: #574a40; --t-core: #070504; }
+.tone-dune { --t-top: #bb9c80; --t-base: #6e5646; --t-bottom: #8c6f5a; --t-core: #0e0806; }
+.tone-solid { --t-top: #ffb487; --t-base: #ff6a1a; --t-bottom: #ff8c52; --t-core: #3a1203; }
+.tone-glass {
+  --ember-soft: #ff8c52;
+  --positive: #4fd39e;
+  --negative: #f2667c;
+  background: rgb(255 255 255 / 0.045) !important; /* taste-skill-ignore: the requested Finance Bento glass tile */
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border-color: rgb(255 255 255 / 0.11) !important;
+  --raised: rgb(255 255 255 / 0.06);
+  --active: rgb(255 255 255 / 0.1);
+  --surface: rgb(255 255 255 / 0.04);
+}
+.tone-glass > .tone-layers > .tone-field,
+.tone-glass > .tone-layers > .tone-core {
+  display: none;
+}
+@keyframes tick-in {
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tone { transition: none; }
+  .tone { @starting-style { opacity: 1; transform: none; } }
 }

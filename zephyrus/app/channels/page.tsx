@@ -131,11 +131,12 @@ export default function ChannelsPage() {
         ))}
       </div>
 
-      <KpiStrip items={kpis} />
+      <KpiStrip items={kpis} className="tone tone-glass" />
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel
-          framed
+          tone="graphite"
+          index={1}
           title={`${channel.name} · ${METRIC[metric].label.toLowerCase()}`}
           aside={
             <Segmented
@@ -168,6 +169,8 @@ export default function ChannelsPage() {
         </Panel>
 
         <Panel
+          tone="glass"
+          index={2}
           title="About this channel"
           aside={
             channel.handle && (
@@ -271,7 +274,7 @@ export default function ChannelsPage() {
           <Treemap items={tiles} groups={groups} height={392} unit="views" ariaLabel={`Views by video, last ${n} days`} />
         </Panel>
 
-        <Panel framed title="Views by weekday" aside={<span>{channel.name} · last 12 weeks</span>}>
+        <Panel tone="dune" index={4} title="Views by weekday" aside={<span>{channel.name} · last 12 weeks</span>}>
           <p className="text-[13px] text-muted">
             Best day: <span className="text-text">{WEEKDAYS[byWeekday.indexOf(Math.max(...byWeekday))]}</span>, <span className="num text-text">{fmt(Math.max(...byWeekday))}</span> views on an average day. Quietest:{" "}
             <span className="text-text">{WEEKDAYS[byWeekday.indexOf(Math.min(...byWeekday))]}</span>.
@@ -283,7 +286,7 @@ export default function ChannelsPage() {
         </Panel>
       </div>
 
-      <Panel className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days{channel.real?.views30 ? "" : " · estimated"}</span>}>
+      <Panel tone="glass" index={5} className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days{channel.real?.views30 ? "" : " · estimated"}</span>}>
         <div className="relative -mx-1 overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-[13px]">
             <thead>

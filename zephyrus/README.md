@@ -60,6 +60,8 @@ The app opens with **sample data** so you can see it working: the four channel n
 
 ## Design
 
+Some cards use the Finance Bento look (21st.dev, @romanvasnev): a warm vertical colour field behind a dark core (Calls, Pipeline, Closed this month, the charts), and see-through glass tiles for the working cards. Big counts are a dot-matrix number or a thin figure with a row of ticks under it showing progress.
+
 Dark warm ground; surfaces step up in lightness instead of borders and shadows. Ember orange (`#ff6a1a`) is the one data colour and the "needs you" signal: anything late, due today or overdue gets a warm light behind it, everything else stays back. Type is Bricolage Grotesque for headings and figures, Onest for the interface, both bundled with the app.
 
 Built with the design skills in `.claude/skills` (Impeccable, Taste, Emil Kowalski's design-engineering set); the dealt direction is in `.taste-skill/direction.json`.

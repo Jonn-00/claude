@@ -46,7 +46,7 @@ export default function NotesPage() {
       <PageHeader title="Notes" line={`${s.notes.length} quick notes · daily reports written ${streak} day${streak === 1 ? "" : "s"} running`} />
       <ReportFlow state={s} now={now} />
       <div className="mt-5 grid gap-5 xl:h-[620px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Panel title="Quick notes" aside={<span className="num">{notes.length}</span>} className="xl:min-h-0">
+        <Panel tone="glass" index={1} title="Quick notes" aside={<span className="num">{notes.length}</span>} className="xl:min-h-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -123,7 +123,7 @@ export default function NotesPage() {
           </ul>
         </Panel>
 
-        <Panel title="Daily reports" aside={<span>newest first</span>} className="xl:min-h-0">
+        <Panel tone="glass" index={2} title="Daily reports" aside={<span>newest first</span>} className="xl:min-h-0">
           <ol className="-mr-2 grid content-start gap-3 pr-2 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
             {reports.map((k) => (
               <Report key={k} date={k} entry={s.agenda[k]} isToday={k === today} />

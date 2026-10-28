@@ -51,7 +51,8 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
 
   return (
     <Panel
-      framed
+      tone="graphite"
+      index={1}
       title={<EditableTitle state={state} k="channels" fallback="Channels" />}
       aside={
         <Segmented

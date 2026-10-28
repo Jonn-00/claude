@@ -365,6 +365,8 @@ export function HourlyPlanner({ state, now }: { state: State; now: number }) {
         </div>
       }
       bodyClassName="pb-3"
+      tone="glass"
+      index={3}
       className="xl:min-h-[400px] xl:flex-1"
     >
       <div ref={scroller} className="-mr-2 h-[272px] overflow-y-auto pt-2 pr-2 xl:h-auto xl:min-h-0 xl:flex-1 xl:basis-0">

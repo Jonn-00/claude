@@ -55,7 +55,7 @@ export function ReportFlow({ state, now }: { state: State; now: number }) {
   const animate = inView && !reduce;
 
   return (
-    <Panel framed className="overflow-hidden" bodyClassName="px-0 pb-5 pt-0">
+    <Panel tone="graphite" index={0} className="overflow-hidden" bodyClassName="px-0 pb-5 pt-0">
       <div ref={box}>
         <svg className="mx-auto hidden h-auto w-full max-w-[860px] sm:block" viewBox="0 0 640 178" role="img" aria-label={`Today's work flows into your daily reports. ${reports} written so far.`}>
           <defs>

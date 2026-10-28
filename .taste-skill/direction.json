@@ -154,5 +154,11 @@
    "name": "analytics",
    "pattern": null
   }
- ]
+ ],
+ "allow": [
+  "gradient"
+ ],
+ "allowWhy": {
+  "gradient": "The user asked for the Finance Bento card look (21st.dev @romanvasnev/finance-bento): warm vertical fields behind a dark core on some cards. Limited to .tone-field and the hatch texture."
+ }
 }

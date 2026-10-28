@@ -10,7 +10,10 @@ export function Panel({
   aside,
   framed,
   lit,
+  tone,
+  index = 0,
   className,
+  style,
   bodyClassName,
   children,
   id,
@@ -20,6 +23,10 @@ export function Panel({
   aside?: React.ReactNode;
   framed?: boolean;
   lit?: boolean;
+  /** A Finance Bento treatment: a glowing gradient field, frosted glass, or the solid accent. */
+  tone?: "ember" | "copper" | "graphite" | "dune" | "solid" | "glass";
+  /** Order in the entrance stagger. */
+  index?: number;
   bodyClassName?: string;
 } & Omit<React.ComponentProps<"section">, "title">) {
   return (
@@ -29,10 +36,18 @@ export function Panel({
         "relative flex min-w-0 flex-col rounded-[18px] border border-border bg-surface bg-[linear-gradient(180deg,rgb(255_255_255/0.028),transparent_140px)]", // taste-skill-ignore: the reference's soft top light on cards
         framed && "frame",
         lit && "lit",
+        tone && `tone tone-${tone}`,
         className,
       )}
+      style={tone ? ({ ...style, ["--i" as string]: index } as React.CSSProperties) : style}
       {...rest}
     >
+      {tone && (
+        <div className="tone-layers" aria-hidden>
+          <div className="tone-field" />
+          <div className="tone-core" />
+        </div>
+      )}
       {framed && (
         <>
           <span className="corner tl" aria-hidden />

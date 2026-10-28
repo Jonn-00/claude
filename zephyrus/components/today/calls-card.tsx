@@ -10,7 +10,8 @@ import { dayKey, timeOf } from "@/lib/time";
 import { cn, fmt } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
 import { Segmented } from "@/components/ui/segmented";
-import { CountUp } from "@/components/ui/count-up";
+import { DotNumber } from "@/components/ui/dot-number";
+import { Ticks } from "@/components/ui/ticks";
 import { OutcomeButtons } from "@/components/ui/outcome-buttons";
 import { notify } from "@/components/ui/notify";
 import { Editable } from "@/components/ui/editable";
@@ -37,7 +38,8 @@ export function CallsCard({ state, now, className }: { state: State; now: number
 
   return (
     <Panel
-      framed
+      tone="copper"
+      index={2}
       title={<EditableTitle state={state} k="calls" fallback="Calls today" />}
       aside={
         <span className="num">
@@ -48,14 +50,14 @@ export function CallsCard({ state, now, className }: { state: State; now: number
       className={className}
     >
       <div className="flex items-end justify-between gap-3">
-        <div className="font-display text-[34px] leading-none font-medium tracking-[-0.02em]">
-          <CountUp value={c.dials} />
-          <span className="ml-1.5 text-[16px] font-normal tracking-normal text-faint">/ {target} dials</span>
+        <div className="flex items-end gap-2.5">
+          <DotNumber value={c.dials} pitch={6} label="Dials today" />
+          <span className="pb-0.5 text-[15px] text-faint">/ {target} dials</span>
         </div>
         <span className={cn("num pb-1 text-[13px]", left === 0 ? "text-positive" : "text-muted")}>{left === 0 ? "Target hit" : `${left} to go`}</span>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={target} aria-valuenow={c.dials} aria-label="Dials against target">
-        <div className="h-full rounded-full bg-ember transition-[width] duration-500 ease-[var(--ease-out)]" style={{ width: `${ratio * 100}%` }} />
+      <div className="mt-3">
+        <Ticks ratio={ratio} n={40} lit="#fff" label="Dials against target" />
       </div>
       <dl className="mt-3 grid grid-cols-4 gap-2 text-[12px]">
         {[

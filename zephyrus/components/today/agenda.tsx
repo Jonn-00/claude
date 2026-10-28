@@ -59,7 +59,7 @@ export function Agenda({ state, now }: { state: State; now: number }) {
   const isToday = date === dayKey(now);
 
   return (
-    <section className="rounded-[18px] border border-border bg-surface">
+    <section className="tone tone-glass relative border" style={{ ["--i" as string]: 5 } as React.CSSProperties}>
       <button
         onClick={() => toggle(!open)}
         aria-expanded={open}
