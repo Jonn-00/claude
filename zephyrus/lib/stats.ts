@@ -1,6 +1,7 @@
 import type { Channel, ChannelId, DayStat, PublishedVideo } from "./types";
 import { addDays, dayKey, fromKey, shortDate } from "./time";
 import { rng } from "./utils";
+import { SNAPSHOT_AT, YOUTUBE, type ChannelSnapshot } from "./youtube";
 
 /*
   Sample analytics until the YouTube Analytics API is connected. Each
@@ -15,15 +16,95 @@ const PEAK: Record<ChannelId, number> = { c1: 52000, c2: 26000, c3: 15000, c4: 1
 const DECAY: Record<ChannelId, number> = { c1: 1.4, c2: 4, c3: 6, c4: 8 };
 
 
-export type ChannelStats = { channelId: ChannelId; days: DayStat[]; videos: PublishedVideo[] };
+export type ChannelStats = {
+  channelId: ChannelId;
+  days: DayStat[];
+  videos: PublishedVideo[];
+  /** "youtube" when views and uploads come from the public snapshot. */
+  source: "youtube" | "estimate";
+  youtube?: { subscribers: number; videoCount: number; totalViews: number; at: string };
+};
+
+// Shorts earn far less per view than long videos; the channel's RPM applies to the long ones.
+const SHORT_RPM = 0.05;
+const isShort = (seconds?: number) => !seconds || seconds <= 180;
+const daysFrom = (a: string, b: string) => Math.round((fromKey(b).getTime() - fromKey(a).getTime()) / 86400000);
+
+/**
+  Real uploads and their real lifetime views. YouTube doesn't publish views per
+  day, so each upload's total is spread from its publish day with a falloff
+  (fast for Shorts, slower for long videos). Every total adds up to YouTube's.
+*/
+function fromYouTube(ch: Channel, snap: ChannelSnapshot, dates: string[], end: string) {
+  const videos: (PublishedVideo & { rpm: number; minutes: number })[] = snap.uploads
+    .map((u) => {
+      const publishedOn = dayKey(new Date(u.publishedAt));
+      const short = isShort(u.seconds);
+      const tau = short ? 2.5 : 9;
+      const life = daysFrom(publishedOn, end) + 1;
+      // A fast falloff plus a long, low tail: old uploads keep picking up a few views.
+      const weights = Array.from({ length: Math.max(0, life) }, (_, k) => Math.exp(-k / tau) + 0.03 * Math.exp(-k / 60));
+      const total = weights.reduce((a, w) => a + w, 0);
+      const daily: Record<string, number> = {};
+      let given = 0;
+      weights.forEach((w, k) => {
+        const d = addDays(publishedOn, k);
+        const v = Math.round((u.views * w) / total);
+        if (d >= dates[0] && v > 0) daily[d] = v;
+        given += v;
+      });
+      if (life > 0 && given !== u.views && daily[publishedOn] !== undefined) daily[publishedOn] += u.views - given;
+      return {
+        id: `${ch.id}-${u.id}`,
+        channelId: ch.id,
+        title: u.title,
+        publishedOn,
+        daily,
+        lifetime: u.views,
+        url: `https://www.youtube.com/watch?v=${u.id}`,
+        seconds: u.seconds,
+        approx: u.approx,
+        rpm: short ? SHORT_RPM : ch.rpm,
+        minutes: u.seconds ? (u.seconds / 60) * (short ? 0.75 : 0.4) : short ? 0.25 : ch.avd,
+      };
+    })
+    .sort((a, b) => a.publishedOn.localeCompare(b.publishedOn));
+
+  const days: DayStat[] = dates.map((date) => {
+    let views = 0, revenue = 0, minutes = 0;
+    for (const v of videos) {
+      const n = v.daily[date] ?? 0;
+      views += n;
+      revenue += (n / 1000) * v.rpm;
+      minutes += n * v.minutes;
+    }
+    return { date, views, subs: 0, watchHours: Math.round(minutes / 60), revenue: Math.round(revenue * 100) / 100 };
+  });
+  // The channels are younger than the window, so their subscribers arrived inside it, roughly with the views.
+  const inWindow = days.reduce((a, d) => a + d.views, 0) || 1;
+  let acc = 0, given = 0;
+  for (const d of days) {
+    acc += d.views;
+    const upTo = Math.round((snap.subscribers * acc) / inWindow);
+    d.subs = upTo - given;
+    given = upTo;
+  }
+  const totalViews = snap.uploads.reduce((a, u) => a + u.views, 0);
+  return { days, videos: videos.map(({ rpm: _r, minutes: _m, ...v }) => v), youtube: { subscribers: snap.subscribers, videoCount: snap.videoCount, totalViews, at: SNAPSHOT_AT } };
+}
 
 export function buildStats(channels: Channel[], today: string, span = 90): ChannelStats[] {
   const end = addDays(today, -1);
   const start = addDays(end, -(span - 1));
   const dates = Array.from({ length: span }, (_, i) => addDays(start, i));
 
-  return channels.map((ch, ci) => {
+  return channels.map((ch, ci): ChannelStats => {
     const r = rng(1009 * (ci + 1));
+    const snap = YOUTUBE[ch.id];
+    if (snap && ch.handle?.toLowerCase() === snap.handle.toLowerCase()) {
+      const yt = fromYouTube(ch, snap, dates, end);
+      return { channelId: ch.id, days: yt.days, videos: yt.videos, source: "youtube", youtube: yt.youtube };
+    }
     const videos: PublishedVideo[] = [];
     let n = 0;
     for (let i = span - 1; i >= 0; i -= CADENCE[ch.id]) {
@@ -86,7 +167,7 @@ export function buildStats(channels: Channel[], today: string, span = 90): Chann
       }
     }
 
-    return { channelId: ch.id, days, videos };
+    return { channelId: ch.id, days, videos, source: "estimate" };
   });
 }
 

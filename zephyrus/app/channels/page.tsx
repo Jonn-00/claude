@@ -65,12 +65,17 @@ export default function ChannelsPage() {
   }, [stats]);
   const top = shares[0];
   const topName = s.channels.find((c) => c.id === top.id)?.name;
+  // When no channel earns out of proportion, say who carries the views instead.
+  const lead = [...shares].sort((a, b) => b.views - a.views)[0];
+  const leadName = s.channels.find((c) => c.id === lead.id)?.name;
+  const skewed = top.rShare - top.vShare >= 0.02;
 
   const kpis = (["views", "watchHours", "subs", "revenue"] as Metric[]).map((m) => {
     const a = sumDays(cur, m);
     const b = sumDays(prev, m);
     const ch = change(a, b);
-    const total = m === "subs" && channel.real?.subscribers !== undefined ? `${fmt(channel.real.subscribers)} total · ` : "";
+    const subsTotal = st.youtube?.subscribers ?? channel.real?.subscribers;
+    const total = m === "subs" && subsTotal !== undefined ? `${fmt(subsTotal)} total · ` : "";
     return { label: METRIC[m].unit + (m === "revenue" ? " (USD)" : ""), value: METRIC[m].fmt(a), sub: total + ch.text, tone: ch.tone };
   });
 
@@ -89,7 +94,7 @@ export default function ChannelsPage() {
   });
   const groups = s.channels.map((c) => ({ id: c.id, name: c.name, color: TONE[c.id].bg, ink: TONE[c.id].ink }));
 
-  const recent = [...st.videos].reverse().slice(0, 7);
+  const recent = [...st.videos].reverse().slice(0, st.youtube ? 8 : 7);
   // Average views per weekday over the last 12 weeks.
   const byWeekday = useMemo(() => {
     const sums = [0, 0, 0, 0, 0, 0, 0];
@@ -109,9 +114,9 @@ export default function ChannelsPage() {
         photo="channels"
         title="Channels"
         line={
-          <>
-            {topName} brings in {Math.round(top.rShare * 100)}% of revenue from {Math.round(top.vShare * 100)}% of views, last 28 days
-          </>
+          skewed
+            ? `${topName} brings in ${Math.round(top.rShare * 100)}% of revenue from ${Math.round(top.vShare * 100)}% of views, last 28 days`
+            : `${leadName} has ${Math.round(lead.vShare * 100)}% of your views across all four channels, last 28 days`
         }
       />
 
@@ -165,7 +170,11 @@ export default function ChannelsPage() {
           </div>
           <p className="mt-2 text-[12px] text-faint">
             Ticks under the line are upload days.{" "}
-            {channel.real?.views30 ? "Scaled to the numbers you entered; the day-to-day shape is still an estimate." : "Estimates until you add your numbers under About this channel."}
+            {st.youtube
+              ? `Each upload's real views from YouTube (${shortDate(fromKey(st.youtube.at))}), spread over the days after it went up; watch time and revenue are estimates.`
+              : channel.real?.views30
+                ? "Scaled to the numbers you entered; the day-to-day shape is still an estimate."
+                : "Estimates until you add your numbers under About this channel."}
           </p>
         </Panel>
 
@@ -197,7 +206,14 @@ export default function ChannelsPage() {
                 ["Name", <Editable key="n" value={channel.name} label="Channel name" onSave={(v) => actions.updateChannel(sel, { name: v })} />],
                 ["Handle", <Editable key="h" value={channel.handle ?? ""} label="YouTube handle" placeholder="@handle" allowEmpty onSave={(v) => actions.updateChannel(sel, { handle: v ? (v.startsWith("@") ? v : "@" + v) : undefined })} />],
                 ["Niche", <Editable key="ni" value={channel.niche} label="Niche" placeholder="Add a niche" allowEmpty onSave={(v) => actions.updateChannel(sel, { niche: v })} />],
-                ["Uploads, last 90 days", fmt(st.videos.length)],
+                ...(st.youtube
+                  ? ([
+                      ["Subscribers", fmt(st.youtube.subscribers)],
+                      ["Uploads", fmt(st.youtube.videoCount)],
+                      ["Lifetime views", fmt(st.youtube.totalViews)],
+                      ["Average per upload", fmt(Math.round(st.youtube.totalViews / Math.max(1, st.videos.length)))],
+                    ] as [string, React.ReactNode][])
+                  : ([["Uploads, last 90 days", fmt(st.videos.length)]] as [string, React.ReactNode][])),
               ] as [string, React.ReactNode][]
             ).map(([k, v]) => (
               <div key={k} className="flex min-h-10 items-center justify-between gap-3">
@@ -206,38 +222,46 @@ export default function ChannelsPage() {
               </div>
             ))}
           </dl>
-          <h3 className="mt-5 mb-1 text-[13px] text-muted">Your numbers</h3>
-          <p className="mb-2 text-[12px] leading-[17px] text-faint">
-            Copy these from Social Blade or YouTube Studio. Until you do, every chart here is an estimate; once you do, they scale to match.
-          </p>
-          <div key={sel + "-real"} className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["subscribers", "Subscribers"],
-                ["views30", "Views, last 30 days"],
-                ["subs30", "Subs gained, 30 days"],
-                ["earnings30", "Earnings, 30 days (USD)"],
-              ] as const
-            ).map(([k, l]) => (
-              <label key={k} className="grid gap-1 text-[11px] text-faint">
-                {l}
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  defaultValue={channel.real?.[k] ?? ""}
-                  placeholder="—"
-                  onBlur={(e) => {
-                    const raw = e.target.value.trim();
-                    const n = raw === "" ? undefined : Math.max(0, Number(raw));
-                    if (n !== channel.real?.[k]) actions.updateChannel(sel, { real: { ...channel.real, [k]: n } });
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                  className={field + " num h-9 text-right"}
-                />
-              </label>
-            ))}
-          </div>
+          {st.youtube ? (
+            <p className="mt-3 text-[12px] leading-[17px] text-faint">
+              Read from YouTube on {shortDate(fromKey(st.youtube.at))}: subscribers (YouTube rounds them), uploads and each upload&apos;s views. Watch time, CTR and revenue only show in YouTube Studio, so those are estimates here.
+            </p>
+          ) : (
+            <>
+            <h3 className="mt-5 mb-1 text-[13px] text-muted">Your numbers</h3>
+            <p className="mb-2 text-[12px] leading-[17px] text-faint">
+              Copy these from Social Blade or YouTube Studio. Until you do, every chart here is an estimate; once you do, they scale to match.
+            </p>
+            <div key={sel + "-real"} className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["subscribers", "Subscribers"],
+                  ["views30", "Views, last 30 days"],
+                  ["subs30", "Subs gained, 30 days"],
+                  ["earnings30", "Earnings, 30 days (USD)"],
+                ] as const
+              ).map(([k, l]) => (
+                <label key={k} className="grid gap-1 text-[11px] text-faint">
+                  {l}
+                  <input
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    defaultValue={channel.real?.[k] ?? ""}
+                    placeholder="—"
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const n = raw === "" ? undefined : Math.max(0, Number(raw));
+                      if (n !== channel.real?.[k]) actions.updateChannel(sel, { real: { ...channel.real, [k]: n } });
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                    className={field + " num h-9 text-right"}
+                  />
+                </label>
+              ))}
+            </div>
+            </>
+          )}
           <h3 className="mt-5 mb-1 text-[13px] text-muted">Coming up</h3>
           {upcoming.length === 0 ? (
             <p className="rounded-[10px] border border-dashed border-border px-3 py-2.5 text-[13px] text-faint">Nothing in production for this channel.</p>
@@ -287,48 +311,78 @@ export default function ChannelsPage() {
         </Panel>
       </div>
 
-      <Panel tone="glass" index={5} className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days{channel.real?.views30 ? "" : " · estimated"}</span>}>
+      <Panel
+        tone="glass"
+        index={5}
+        className="mt-5"
+        title={`Recent uploads · ${channel.name}`}
+        aside={
+          <span className="num">
+            {st.youtube ? `${st.youtube.videoCount} uploads · from YouTube, ${shortDate(fromKey(st.youtube.at))}` : `${st.videos.length} in the last 90 days${channel.real?.views30 ? "" : " · estimated"}`}
+          </span>
+        }
+      >
         <div className="relative -mx-1 overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-[13px]">
             <thead>
               <tr className="text-[12px] text-faint">
-                <th className="w-[40%] pb-2 pl-1 text-left font-normal">Video</th>
+                <th className="w-[44%] pb-2 pl-1 text-left font-normal">Video</th>
                 <th className="pb-2 text-right font-normal">Published</th>
-                <th className="pb-2 text-right font-normal">First 7 days</th>
-                <th className="pb-2 text-right font-normal">Total views</th>
-                <th className="pb-2 text-right font-normal">CTR</th>
-                <th className="pb-2 text-right font-normal">Avg. viewed</th>
+                {st.youtube ? <th className="pb-2 text-right font-normal">Length</th> : <th className="pb-2 text-right font-normal">First 7 days</th>}
+                <th className="pb-2 text-right font-normal">{st.youtube ? "Views" : "Total views"}</th>
+                {!st.youtube && <th className="pb-2 text-right font-normal">CTR</th>}
+                {!st.youtube && <th className="pb-2 text-right font-normal">Avg. viewed</th>}
                 <th className="pr-1 pb-2 text-right font-normal">Est. revenue</th>
               </tr>
             </thead>
             <tbody>
               {recent.map((v) => {
-                const views = Object.values(v.daily).reduce((a, b) => a + b, 0);
+                const total = (x: typeof v) => x.lifetime ?? Object.values(x.daily).reduce((a, b) => a + b, 0);
+                const views = total(v);
                 const first = Object.entries(v.daily)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .slice(0, 7)
                   .reduce((a, [, x]) => a + x, 0);
-                const max = Math.max(...recent.map((x) => Object.values(x.daily).reduce((a, b) => a + b, 0)));
+                const max = Math.max(1, ...recent.map(total));
+                const rpm = v.url && (!v.seconds || v.seconds <= 180) ? 0.05 : channel.rpm;
                 return (
                   <tr key={v.id} className="group border-t border-rule transition-colors hover:bg-raised/50">
                     <td className="max-w-0 py-2.5 pl-1">
-                      <div className="truncate">{v.title}</div>
+                      {v.url ? (
+                        <a href={v.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-ember-soft">
+                          <span className="truncate">{v.title}</span>
+                          <ArrowUpRight size={12} className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                        </a>
+                      ) : (
+                        <div className="truncate">{v.title}</div>
+                      )}
                       <div className="mt-1 h-[2px] rounded-full bg-raised">
                         <div className="h-full rounded-full bg-sand transition-[width] duration-500 ease-[var(--ease-out)] group-hover:bg-ember" style={{ width: `${(views / max) * 100}%` }} />
                       </div>
                     </td>
-                    <td className="num py-2.5 text-right text-muted">{shortDate(fromKey(v.publishedOn))}</td>
-                    <td className="num py-2.5 text-right">{compact(first)}</td>
-                    <td className="num py-2.5 text-right">{compact(views)}</td>
-                    <td className="num py-2.5 text-right">{(v.ctr * 100).toFixed(1)}%</td>
-                    <td className="num py-2.5 text-right">{Math.round(v.avdPct * 100)}%</td>
-                    <td className="num py-2.5 pr-1 text-right">${fmt((views / 1000) * channel.rpm, 2)}</td>
+                    <td className="num py-2.5 text-right text-muted" title={v.approx ? "Approximate: YouTube didn't show this date, so it sits between the uploads around it" : undefined}>
+                      {v.approx && "~"}
+                      {shortDate(fromKey(v.publishedOn))}
+                    </td>
+                    {st.youtube ? (
+                      <td className="num py-2.5 text-right text-muted">{v.seconds ? `${Math.floor(v.seconds / 60)}:${String(v.seconds % 60).padStart(2, "0")}` : "Short"}</td>
+                    ) : (
+                      <td className="num py-2.5 text-right">{compact(first)}</td>
+                    )}
+                    <td className="num py-2.5 text-right">
+                      {v.approx && "~"}
+                      {compact(views)}
+                    </td>
+                    {!st.youtube && <td className="num py-2.5 text-right">{((v.ctr ?? 0) * 100).toFixed(1)}%</td>}
+                    {!st.youtube && <td className="num py-2.5 text-right">{Math.round((v.avdPct ?? 0) * 100)}%</td>}
+                    <td className="num py-2.5 pr-1 text-right">${fmt((views / 1000) * rpm, 2)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        {st.youtube && <p className="mt-3 text-[12px] text-faint">Revenue assumes about $0.05 per 1,000 views on Shorts and this channel&apos;s RPM on longer videos. ~ marks an approximate date or rounded count.</p>}
       </Panel>
 
       <div id="production" className="mt-5 scroll-mt-20">

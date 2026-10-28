@@ -38,7 +38,7 @@ For a production build: `npm run build && npm start`.
 Almost everything is edited where it sits: click a name or title (stage names, card titles, video titles, reminders, lead names, phone numbers, the dial target) to change it; Enter saves, Esc cancels.
 
 - **Production line:** click a video to edit its title, channel, stage and go-live time. Hover a column for its menu: add a video there, rename the stage, add a stage after it, or remove it (its videos move to the stage before; Undo puts it all back). Scheduled and Live can be renamed but not removed.
-- **Channels:** name, handle and niche on the Channels page, with links to the channel on YouTube and Social Blade. Type your own numbers (subscribers, views, subs gained, earnings for the last 30 days) and the charts scale to them; until then they're estimates.
+- **Channels:** name, handle and niche on the Channels page, with links to the channel on YouTube and Social Blade.
 - **Sidebar:** the button next to the logo (or `[`) folds it to icons.
 - **Settings:** hold to clear the sample data (keeps your channels, stages, names and settings), or hold to reset everything to the sample.
 
@@ -56,7 +56,9 @@ Almost everything is edited where it sits: click a name or title (stage names, c
 
 Everything you add is saved in your browser (`localStorage`), so it stays on that computer and browser. Settings (bottom of the sidebar) holds the dial target (60), the deal value (120 CAD) and a reset to the sample data.
 
-The app opens with **sample data** so you can see it working: the four channel names, every analytics figure, the leads and the planner blocks are made up. Rename the channels on the Channels page and delete or edit the rest. Channel analytics stay sample numbers until the YouTube Analytics API is connected.
+The app opens with **sample data** for the agency (leads, dials), the planner and the production line, so you can see it working; edit or delete it.
+
+**Channel numbers are real**, read from YouTube's public pages and RSS feeds on Oct 28, 2026 (`lib/youtube-snapshot.json`): subscribers (YouTube rounds them), upload count, and every upload's title, date and lifetime views. 14 older uploads YouTube didn't date publicly have their date placed between neighbours and a rounded view count; they're marked ~. What YouTube only shows in Studio stays estimated: how views split across days, watch time, CTR and revenue (about $0.05 per 1,000 Shorts views, the channel's RPM for longer videos). If you change a channel's handle, that channel goes back to estimates; for channels without YouTube data you can type your own numbers on the Channels page. Social Blade blocks automated visits, so the figures come from YouTube directly.
 
 ## Design
 

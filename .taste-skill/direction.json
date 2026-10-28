@@ -156,9 +156,11 @@
   }
  ],
  "allow": [
+  "emoji",
   "gradient"
  ],
  "allowWhy": {
-  "gradient": "The user asked for the Finance Bento card look (21st.dev @romanvasnev/finance-bento): warm vertical fields behind a dark core on some cards. Limited to .tone-field and the hatch texture."
+  "gradient": "The user asked for the Finance Bento card look (21st.dev @romanvasnev/finance-bento): warm vertical fields behind a dark core on some cards. Limited to .tone-field and the hatch texture.",
+  "emoji": "Only inside the user's real YouTube video titles (Channels page uploads and treemap). The interface itself uses none."
  }
 }

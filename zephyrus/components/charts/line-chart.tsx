@@ -14,7 +14,7 @@ export type LineMark = { index: number; label: string };
  */
 export function LineChart({
   points,
-  marks = [],
+  marks: rawMarks = [],
   height = 200,
   unit,
   format = (n: number) => n.toLocaleString("en-US"),
@@ -29,6 +29,13 @@ export function LineChart({
   color?: string;
   ariaLabel: string;
 }) {
+  // Several uploads on one day share a tick; the tooltip lists them all.
+  const marks = Object.values(
+    rawMarks.reduce<Record<number, LineMark>>((acc, m) => {
+      acc[m.index] = acc[m.index] ? { ...m, label: `${acc[m.index].label} · ${m.label}` } : m;
+      return acc;
+    }, {}),
+  );
   const [ref, { w: W, h: measured }] = useSize();
   const reduce = useReducedMotion();
   const id = useId().replace(/:/g, "");

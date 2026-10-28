@@ -55,8 +55,15 @@ export type PublishedVideo = {
   publishedOn: string;
   /** Views per day keyed by date, so any window sums honestly. */
   daily: Record<string, number>;
-  ctr: number;
-  avdPct: number;
+  /** Estimated; YouTube only shows these in Studio, so real uploads leave them out. */
+  ctr?: number;
+  avdPct?: number;
+  /** Set on uploads read from YouTube: their lifetime views and where to watch them. */
+  lifetime?: number;
+  url?: string;
+  seconds?: number;
+  /** The date was placed between neighbours and the views were rounded. */
+  approx?: boolean;
 };
 
 export type Niche = "realestate" | "detailing";
