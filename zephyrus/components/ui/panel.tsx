@@ -26,7 +26,7 @@ export function Panel({
     <section
       id={id}
       className={cn(
-        "relative flex min-w-0 flex-col rounded-[18px] border border-border bg-surface",
+        "relative flex min-w-0 flex-col rounded-[18px] border border-border bg-surface bg-[linear-gradient(180deg,rgb(255_255_255/0.028),transparent_140px)]", // taste-skill-ignore: the reference's soft top light on cards
         framed && "frame",
         lit && "lit",
         className,
@@ -42,7 +42,7 @@ export function Panel({
         </>
       )}
       {(title || aside) && (
-        <header className="flex min-h-[52px] items-center justify-between gap-3 px-5 pt-4 pb-2">
+        <header className="flex min-h-[52px] flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-4 pb-2">
           {title && <h2 className="font-display text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>}
           {aside && <div className="flex items-center gap-2 text-[13px] text-muted">{aside}</div>}
         </header>

@@ -69,6 +69,16 @@ export function useStats(s: State | null) {
   return useMemo(() => (s ? buildStats(s.channels, today) : []), [s?.channels, today]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+export const getState = () => get();
+
+type Coll = "videos" | "leads" | "blocks" | "reminders" | "notes";
+/** Where an item sits now, so a delete can be undone in place. */
+export function locate<K extends Coll>(key: K, id: string) {
+  const arr = get()[key] as { id: string }[];
+  const index = arr.findIndex((x) => x.id === id);
+  return index < 0 ? null : { item: arr[index] as State[K][number], index };
+}
+
 export function resetSample() {
   setState(() => seed());
 }
@@ -88,6 +98,20 @@ export const actions = {
           return { ...v, stage, liveAt: stage === "live" ? new Date().toISOString() : undefined };
         }),
       };
+    });
+  },
+  setStage(id: string, stage: State["videos"][number]["stage"]) {
+    setState((s) => ({
+      ...s,
+      videos: s.videos.map((v) => (v.id === id ? { ...v, stage, liveAt: stage === "live" ? v.liveAt ?? new Date().toISOString() : undefined } : v)),
+    }));
+  },
+  restore<K extends Coll>(key: K, item: State[K][number], index: number) {
+    setState((s) => {
+      const arr = [...(s[key] as State[K][number][])];
+      if (arr.some((x) => (x as { id: string }).id === (item as { id: string }).id)) return s;
+      arr.splice(Math.min(index, arr.length), 0, item);
+      return { ...s, [key]: arr };
     });
   },
   addVideo(v: Omit<State["videos"][number], "id">) {
@@ -114,8 +138,12 @@ export const actions = {
     });
     return id;
   },
-  undoCall(id: string) {
-    setState((s) => ({ ...s, calls: s.calls.filter((c) => c.id !== id) }));
+  undoCall(id: string, lead?: State["leads"][number]) {
+    setState((s) => ({
+      ...s,
+      calls: s.calls.filter((c) => c.id !== id),
+      leads: lead ? s.leads.map((l) => (l.id === lead.id ? lead : l)) : s.leads,
+    }));
   },
   updateLead(id: string, patch: Partial<State["leads"][number]>) {
     setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));

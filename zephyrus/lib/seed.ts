@@ -75,9 +75,14 @@ export function seed(now = Date.now()): State {
 
   // Dials: weekdays 09:00–17:00 at roughly the target, Saturdays half.
   const calls: CallEvent[] = [];
-  const pick = (): Outcome => {
+  // Who picks up depends on the hour: detailers before the bays fill up,
+  // agents around lunch between showings.
+  const pick = (mins: number, niche: Niche): Outcome => {
+    const h = mins / 60;
+    const peak = niche === "detailing" ? 9.4 : 12.4;
+    const p = 0.2 + 0.32 * Math.exp(-(((h - peak) / 1.6) ** 2));
     const x = r();
-    return x < 0.66 ? "noanswer" : x < 0.9 ? "talked" : "interested";
+    return x > p ? "noanswer" : x > p * 0.3 ? "talked" : "interested";
   };
   for (let back = 20; back >= 0; back--) {
     const day = addDays(today, -back);
@@ -93,7 +98,7 @@ export function seed(now = Date.now()): State {
       const d = fromKey(day);
       d.setHours(0, mins, 0, 0);
       const niche: Niche = r() < 0.55 ? "realestate" : "detailing";
-      calls.push({ id: `k${back}-${i}`, at: d.toISOString(), niche, outcome: pick() });
+      calls.push({ id: `k${back}-${i}`, at: d.toISOString(), niche, outcome: pick(mins, niche) });
     }
   }
   // The deals and demos behind the leads above, so counts and the lead list agree.

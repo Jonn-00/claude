@@ -2,21 +2,25 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Phone, Search, Trash2, Undo2 } from "lucide-react";
+import { Phone, Search, Trash2 } from "lucide-react";
 import { actions, useAppState } from "@/lib/store";
 import { countCalls, lastNDays, monthStart } from "@/lib/derive";
 import type { Lead, LeadStatus, Niche, Outcome } from "@/lib/types";
 import { LEAD_STATUS_LABEL, NICHE_LABEL, OUTCOME_LABEL } from "@/lib/types";
-import { addDays, dayKey, fromKey, relDay, useNow, weekday } from "@/lib/time";
+import { addDays, dayKey, fromKey, relDay, shortDate, useNow, weekday } from "@/lib/time";
 import { cn, fmt } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Panel } from "@/components/ui/panel";
 import { Segmented } from "@/components/ui/segmented";
 import { Bars } from "@/components/charts/bars";
+import { Waves } from "@/components/charts/waves";
+import { Forecast } from "@/components/charts/forecast";
 import { CountUp } from "@/components/ui/count-up";
+import { notify, removeWithUndo } from "@/components/ui/notify";
+import { OutcomeButtons } from "@/components/ui/outcome-buttons";
 
-const OUTCOMES: Outcome[] = ["noanswer", "talked", "interested", "demo", "won"];
+const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
 const STATUS_ORDER: LeadStatus[] = ["callback", "interested", "demo", "new", "won", "lost"];
 
 const pill: Record<LeadStatus, string> = {
@@ -46,7 +50,6 @@ function Agency() {
 
   const [niche, setNiche] = useState<Niche>("realestate");
   const [leadId, setLeadId] = useState<string>("");
-  const [last, setLast] = useState<{ id: string; label: string } | null>(null);
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
   const [nicheFilter, setNicheFilter] = useState<Niche | "all">("all");
   const [q, setQ] = useState("");
@@ -54,7 +57,10 @@ function Agency() {
 
   useEffect(() => {
     if (!focus) return;
-    const t = setTimeout(() => document.getElementById(`lead-${focus}`)?.scrollIntoView({ block: "center" }), 50);
+    const t = setTimeout(() => {
+      const row = [document.getElementById(`lead-${focus}`), document.getElementById(`lead-m-${focus}`)].find((el) => el && el.offsetParent !== null);
+      row?.scrollIntoView({ block: "center" });
+    }, 50);
     return () => clearTimeout(t);
   }, [focus]);
 
@@ -65,6 +71,50 @@ function Agency() {
   const reach = week.dials ? week.reached / week.dials : 0;
   const prevReach = prevWeek.dials ? prevWeek.reached / prevWeek.dials : 0;
   const reachDiff = (reach - prevReach) * 100;
+
+  const [waveNiche, setWaveNiche] = useState<Niche | "all">("all");
+  const waves = useMemo(() => {
+    const above = [0, 1, 2].map(() => HOURS.map(() => 0));
+    const below = [0, 1, 2].map(() => HOURS.map(() => 0));
+    for (const e of s.calls) {
+      if (waveNiche !== "all" && e.niche !== waveNiche) continue;
+      const d = dayKey(new Date(e.at));
+      const back = Math.round((fromKey(today).getTime() - fromKey(d).getTime()) / 86_400_000);
+      const k = Math.floor(back / 7);
+      const hi = HOURS.indexOf(new Date(e.at).getHours());
+      if (k > 2 || hi < 0) continue;
+      above[k][hi]++;
+      if (e.outcome !== "noanswer") below[k][hi]++;
+    }
+    return { above, below };
+  }, [s.calls, waveNiche, today]);
+  const bestHour = (() => {
+    let best: { h: number; rate: number } | null = null;
+    HOURS.forEach((h, i) => {
+      const a = waves.above[0][i];
+      if (a < 8) return;
+      const rate = waves.below[0][i] / a;
+      if (!best || rate > best.rate) best = { h, rate };
+    });
+    return best as { h: number; rate: number } | null;
+  })();
+
+  const forecast = useMemo(() => {
+    const first = fromKey(monthStart(today));
+    const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    const t = fromKey(today).getDate() - 1;
+    let run = 0;
+    const pts = Array.from({ length: last }, (_, i) => {
+      const d = dayKey(new Date(first.getFullYear(), first.getMonth(), i + 1));
+      if (i <= t) run += countCalls(s.calls, d, d).won * deal;
+      return { label: shortDate(fromKey(d)), value: run };
+    });
+    const sofar = pts[t].value;
+    const pace = sofar / (t + 1);
+    for (let i = t + 1; i < last; i++) pts[i].value = Math.round(sofar + pace * (i - t));
+    const end = pts[last - 1].value;
+    return { points: pts, t, end, deals: deal ? end / deal : 0 };
+  }, [s.calls, today, deal]);
 
   const days = lastNDays(today, 14);
   const bars = days.map((d) => ({ label: d === today ? "Today" : weekday(fromKey(d)).slice(0, 2), sub: relDay(fromKey(d).setHours(12), now).replace(/ \d\d:\d\d$/, ""), value: countCalls(s.calls, d, d).dials }));
@@ -85,8 +135,10 @@ function Agency() {
     const lead = s.leads.find((l) => l.id === leadId);
     const n = lead?.niche ?? niche;
     const id = actions.logCall({ niche: n, outcome: o, leadId: lead?.id });
-    setLast({ id, label: `${OUTCOME_LABEL[o]}${lead ? ` · ${lead.business}` : ` · ${NICHE_LABEL[n].toLowerCase()}`}` });
+    notify(`Logged: ${OUTCOME_LABEL[o]}`, { detail: lead ? lead.business : `Cold call · ${NICHE_LABEL[n].toLowerCase()}`, undo: () => actions.undoCall(id, lead) });
   };
+  const byOutcome = { noanswer: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
+  for (const e of s.calls) if (dayKey(new Date(e.at)) === today) byOutcome[e.outcome]++;
 
   return (
     <div className="mx-auto max-w-[1480px]">
@@ -172,35 +224,8 @@ function Agency() {
                 ]}
               />
             )}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {OUTCOMES.map((o) => (
-                <button
-                  key={o}
-                  onClick={() => log(o)}
-                  className={cn("press h-11 rounded-[12px] border text-[14px]", o === "noanswer" ? "border-control text-muted hover:text-text" : "border-control hover:border-sand hover:bg-raised")}
-                >
-                  {OUTCOME_LABEL[o]}
-                </button>
-              ))}
-            </div>
-            <div className="flex h-5 items-center gap-2 text-[12px] text-faint" aria-live="polite">
-              {last ? (
-                <>
-                  <span className="truncate">Logged: {last.label}</span>
-                  <button
-                    className="inline-flex items-center gap-1 text-muted hover:text-text hover:underline"
-                    onClick={() => {
-                      actions.undoCall(last.id);
-                      setLast(null);
-                    }}
-                  >
-                    <Undo2 size={12} /> Undo
-                  </button>
-                </>
-              ) : (
-                <span>Picking a lead updates its status: Interested, Demo booked or Client.</span>
-              )}
-            </div>
+            <OutcomeButtons counts={byOutcome} onLog={log} size="lg" />
+            <p className="text-[12px] text-faint">Picking a lead updates its status: Interested, Demo booked or Client. Numbers are today's count.</p>
           </div>
           <h3 className="mt-4 mb-1 text-[13px] text-muted">Latest dials</h3>
           <ul className="divide-y divide-rule">
@@ -211,13 +236,67 @@ function Agency() {
                 const lead = c.leadId ? s.leads.find((l) => l.id === c.leadId) : undefined;
                 return (
                   <li key={c.id} className="flex h-10 items-center gap-3 text-[13px]">
-                    <span className="num w-[92px] shrink-0 text-faint">{relDay(c.at, now)}</span>
+                    <span className="num w-[124px] shrink-0 whitespace-nowrap text-faint">{relDay(c.at, now)}</span>
                     <span className="min-w-0 flex-1 truncate">{lead ? lead.business : `Cold call · ${NICHE_LABEL[c.niche].toLowerCase()}`}</span>
                     <span className={cn("shrink-0", c.outcome === "won" ? "text-positive" : c.outcome === "noanswer" ? "text-faint" : "text-muted")}>{OUTCOME_LABEL[c.outcome]}</span>
                   </li>
                 );
               })}
           </ul>
+        </Panel>
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Panel
+          framed
+          title="When people pick up"
+          aside={
+            <Segmented
+              label="Niche"
+              value={waveNiche}
+              onChange={setWaveNiche}
+              items={[
+                { value: "all", label: "Both" },
+                { value: "realestate", label: "Real estate" },
+                { value: "detailing", label: "Detailing" },
+              ]}
+            />
+          }
+        >
+          <p className="mb-1 text-[13px] text-muted">
+            {bestHour !== null ? (
+              <>
+                Best hour this week: <span className="num text-text">{String(bestHour.h).padStart(2, "0")}:00</span>, {Math.round(bestHour.rate * 100)}% picked up
+              </>
+            ) : (
+              "Not enough dials this week to call a best hour yet."
+            )}
+          </p>
+          <Waves hours={HOURS} above={waves.above} below={waves.below} labels={{ above: "Dials", below: "Reached", current: "last 7 days" }} />
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-faint">
+            <span className="inline-flex items-center gap-1.5">
+              <i className="h-0.5 w-3.5 rounded-sm bg-sand" /> Dials, above the line
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="h-0.5 w-3.5 rounded-sm bg-ember" /> Reached, below (own scale)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="h-0.5 w-3.5 rounded-sm bg-faint/50" /> The two weeks before
+            </span>
+          </div>
+        </Panel>
+
+        <Panel framed title="Closed this month" aside={<span className="num">{month.won} deals · {fmt(month.won * deal)} CAD</span>}>
+          <Forecast points={forecast.points} todayIndex={forecast.t} format={(n) => `${fmt(n)} CAD`} height="fill" ariaLabel="Closed value this month, with the current pace carried to month end" />
+          <p className="mt-3 text-[13px] text-muted">
+            {month.won ? (
+              <>
+                At this pace: about <span className="num text-text">{forecast.deals.toFixed(1)} deals</span>, <span className="num text-text">{fmt(forecast.end)} CAD</span> by {forecast.points.at(-1)!.label}.
+              </>
+            ) : (
+              "No deals closed this month yet. The line starts with your first one."
+            )}
+          </p>
         </Panel>
       </div>
 
@@ -252,7 +331,45 @@ function Agency() {
             ]}
           />
         </div>
-        <div className="relative -mx-2 overflow-x-auto">
+        {/* On a phone each lead is a two-line row: who, then status, next call and the call button. */}
+        <ul className="divide-y divide-rule md:hidden">
+          {leads.map((l) => {
+            const overdue = !!l.nextAt && new Date(l.nextAt).getTime() < now && (l.status === "callback" || l.status === "interested");
+            return (
+              <li key={l.id} id={`lead-m-${l.id}`} className={cn("py-3", focus === l.id && "-mx-2 rounded-[12px] bg-raised px-2")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px]">{l.business}</div>
+                    <div className="truncate text-[12px] text-faint">
+                      {l.contact} · {NICHE_LABEL[l.niche]} · {l.city}
+                    </div>
+                  </div>
+                  <a href={`tel:${l.phone.replace(/\s/g, "")}`} className="press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-control px-3 text-[13px]">
+                    <Phone size={13} /> Call
+                  </a>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <select
+                    value={l.status}
+                    onChange={(e) => actions.updateLead(l.id, { status: e.target.value as LeadStatus })}
+                    aria-label={`Status for ${l.business}`}
+                    className={cn("h-8 appearance-none rounded-full border-0 px-3 text-[12px] outline-none", pill[l.status])}
+                  >
+                    {STATUS_ORDER.map((st) => (
+                      <option key={st} value={st} className="bg-raised text-text">
+                        {LEAD_STATUS_LABEL[st]}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={cn("num text-[12px]", overdue ? "text-ember-soft" : "text-muted")}>{l.nextAt ? relDay(l.nextAt, now) : ""}</span>
+                </div>
+                {l.note && <p className="mt-1.5 text-[13px] text-muted">{l.note}</p>}
+              </li>
+            );
+          })}
+          {leads.length === 0 && <li className="py-6 text-center text-[13px] text-faint">No leads match. Add one with Quick add.</li>}
+        </ul>
+        <div className="relative -mx-2 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[860px] border-collapse text-[13px]">
             <thead>
               <tr className="text-[12px] text-faint">
@@ -348,7 +465,7 @@ function LeadRow({ l, now, focused }: { l: Lead; now: number; focused: boolean }
             <Phone size={12} /> Call
           </a>
           <button
-            onClick={() => confirm(`Delete ${l.business}?`) && actions.removeLead(l.id)}
+            onClick={() => removeWithUndo("leads", l.id, l.business, actions.removeLead)}
             aria-label={`Delete ${l.business}`}
             className="press grid size-7 place-items-center rounded-full text-faint opacity-0 group-hover:opacity-100 hover:bg-raised hover:text-text focus-visible:opacity-100"
           >

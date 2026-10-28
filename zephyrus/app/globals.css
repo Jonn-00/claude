@@ -76,6 +76,13 @@ body {
   color: var(--text);
 }
 
+/* The warm light the reference leans on: it leaks in from the top right and
+   fades into the ground, so the page is never a flat black. */
+body {
+  background-image: radial-gradient(70% 55% at 88% -12%, rgb(255 106 26 / 0.075), transparent 70%); /* taste-skill-ignore: the brief's ambient warm light */
+  background-attachment: fixed;
+}
+
 body {
   font-family: var(--font-sans);
   font-size: 14px;
@@ -139,6 +146,16 @@ textarea::placeholder {
   rising behind whatever needs attention now, so it comes forward from the
   dark while everything else stays back.
 */
+@property --mx {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --my {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 120%;
+}
 .lit {
   position: relative;
   isolation: isolate;
@@ -150,8 +167,18 @@ textarea::placeholder {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(120% 90% at 50% 120%, rgb(255 106 26 / 0.2), transparent 62%); /* taste-skill-ignore: the brief's ember light, only on what needs attention */
+  background: radial-gradient(120% 90% at var(--mx) var(--my), rgb(255 106 26 / 0.22), transparent 62%); /* taste-skill-ignore: the brief's ember light, only on what needs attention */
   pointer-events: none;
+  transition: --mx 500ms var(--ease-out), --my 500ms var(--ease-out);
+}
+/* The light leans toward the pointer (set by the shell), and settles back when it leaves. */
+.lit[data-near]::before {
+  --mx: var(--px, 50%);
+  --my: var(--py, 120%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lit::before { transition: none; }
+  .lit[data-near]::before { --mx: 50%; --my: 120%; }
 }
 
 /* Corner marks from the Ink Orbit bento: hidden at rest, they open on hover. */
@@ -197,6 +224,10 @@ textarea::placeholder {
 }
 @keyframes dash {
   to { stroke-dashoffset: -14; }
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translate(14px, -10px) rotate(4deg); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Personal planner blocks are hatched, so kinds read apart without hue. */

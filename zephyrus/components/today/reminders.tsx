@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { actions } from "@/lib/store";
 import type { State } from "@/lib/types";
 import { KIND_LABEL } from "@/lib/types";
 import { dayKey, fromKey, hhmm, minutesOf, relDay } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
+import { removeWithUndo } from "@/components/ui/notify";
 
 /** Due today or overdue, plus anything ticked off today. Overdue is lit. */
 export function Reminders({ state, now }: { state: State; now: number }) {
@@ -56,20 +57,38 @@ export function Reminders({ state, now }: { state: State; now: number }) {
                 aria-checked={r.done}
                 aria-label={r.done ? `Mark “${r.title}” not done` : `Mark “${r.title}” done`}
                 className={cn(
-                  "press mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-[6px] border",
+                  "press mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-[6px] border transition-colors duration-200",
                   r.done ? "border-sand bg-sand text-ground" : "border-control hover:border-sand",
                 )}
               >
-                {r.done && <Check size={12} strokeWidth={3} />}
+                <svg viewBox="0 0 12 12" className="size-3" aria-hidden>
+                  <path
+                    d="M2.5 6.4 5 8.8 9.6 3.6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    pathLength={1}
+                    style={{ strokeDasharray: 1, strokeDashoffset: r.done ? 0 : 1, transition: "stroke-dashoffset 260ms var(--ease-out) 60ms" }}
+                  />
+                </svg>
               </button>
               <div className="min-w-0 flex-1">
-                <div className={cn("text-[13px] leading-[18px]", r.done && "text-faint line-through decoration-faint")}>{r.title}</div>
+                <div
+                  className={cn(
+                    "text-[13px] leading-[18px] line-through transition-[color,text-decoration-color] duration-300",
+                    r.done ? "text-faint decoration-faint" : "decoration-transparent",
+                  )}
+                >
+                  {r.title}
+                </div>
                 <div className={cn("num text-[12px] leading-4", overdue ? "text-ember-soft" : "text-faint")}>
                   {relDay(r.due, now)} · {KIND_LABEL[r.kind]}
                 </div>
               </div>
               <button
-                onClick={() => actions.removeReminder(r.id)}
+                onClick={() => removeWithUndo("reminders", r.id, "reminder", actions.removeReminder)}
                 aria-label={`Delete “${r.title}”`}
                 className="press grid size-7 shrink-0 place-items-center rounded-full text-faint opacity-0 group-hover:opacity-100 hover:bg-raised hover:text-text focus-visible:opacity-100"
               >

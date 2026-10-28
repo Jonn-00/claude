@@ -9,6 +9,8 @@ import { callbacks } from "@/lib/derive";
 import { dayKey, minutesOf, timeOf, until, useNow, hhmm } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { ChartTooltip } from "@/components/ui/tooltip";
+import { AppToaster, notify } from "@/components/ui/notify";
+import { HoldButton } from "@/components/ui/hold-button";
 import { Button, Kbd } from "@/components/ui/button";
 import { Mark } from "./mark";
 import { CommandPalette } from "./command-palette";
@@ -32,6 +34,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState(false);
 
   useEffect(() => setMenu(false), [path]);
+
+  // Lit things lean their light toward the pointer. One listener for the app;
+  // it only writes to the element under the pointer.
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    let last: HTMLElement | null = null;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = (e.target as Element | null)?.closest?.(".lit") as HTMLElement | null;
+        if (last && last !== el) last.removeAttribute("data-near");
+        last = el;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--px", `${((e.clientX - r.left) / r.width) * 100}%`);
+        el.style.setProperty("--py", `${((e.clientY - r.top) / r.height) * 100 + 40}%`);
+        el.setAttribute("data-near", "");
+      });
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointermove", onMove);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -178,6 +206,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {s && palette && <CommandPalette state={s} onClose={() => setPalette(false)} onQuickAdd={() => { setPalette(false); setQuick(true); }} />}
       {s && quick && <QuickAdd state={s} onClose={() => setQuick(false)} />}
       <ChartTooltip />
+      <AppToaster />
     </div>
   );
 }
@@ -218,14 +247,16 @@ function SettingsMenu({ open, setOpen }: { open: boolean; setOpen: (o: boolean) 
             />
           </label>
           <p className="mt-3 text-[12px] leading-[17px] text-faint">Everything saves in this browser. Rename channels on the Channels page.</p>
-          <button
-            className="press mt-3 h-8 w-full rounded-full border border-control text-[13px] text-muted hover:text-text"
-            onClick={() => {
-              if (confirm("Replace everything with the sample data?")) resetSample();
+          <HoldButton
+            className="mt-3 h-8 w-full rounded-full border border-control text-[13px] text-muted hover:text-text"
+            onConfirm={() => {
+              resetSample();
+              setOpen(false);
+              notify("Back to the sample data");
             }}
           >
-            Reset to sample data
-          </button>
+            Hold to reset to sample data
+          </HoldButton>
         </div>
       )}
     </div>

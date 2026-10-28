@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Button } from "@/components/ui/button";
+import { removeWithUndo } from "@/components/ui/notify";
+import { ReportFlow } from "@/components/notes/report-flow";
 
 const PROMPTS: { key: keyof AgendaEntry; label: string }[] = [
   { key: "shipped", label: "Shipped" },
@@ -42,7 +44,8 @@ export default function NotesPage() {
   return (
     <div className="mx-auto max-w-[1480px]">
       <PageHeader title="Notes" line={`${s.notes.length} quick notes · daily reports written ${streak} day${streak === 1 ? "" : "s"} running`} />
-      <div className="grid gap-5 xl:h-[calc(100dvh-188px)] xl:min-h-[560px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <ReportFlow state={s} now={now} />
+      <div className="mt-5 grid gap-5 xl:h-[620px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Panel title="Quick notes" aside={<span className="num">{notes.length}</span>} className="xl:min-h-0">
           <form
             onSubmit={(e) => {
@@ -107,7 +110,7 @@ export default function NotesPage() {
                 <div className="mt-1 flex items-center justify-between">
                   <span className="num text-[12px] text-faint">{relDay(n.createdAt, now)}</span>
                   <button
-                    onClick={() => actions.removeNote(n.id)}
+                    onClick={() => removeWithUndo("notes", n.id, "note", actions.removeNote)}
                     aria-label="Delete note"
                     className="press grid size-7 place-items-center rounded-full text-faint opacity-0 group-hover:opacity-100 hover:bg-raised hover:text-text focus-visible:opacity-100"
                   >

@@ -16,11 +16,13 @@ import { Panel } from "@/components/ui/panel";
 import { Segmented } from "@/components/ui/segmented";
 import { LineChart } from "@/components/charts/line-chart";
 import { Treemap } from "@/components/charts/treemap";
+import { Radar } from "@/components/charts/radar";
 import { ProductionLine } from "@/components/today/production-line";
 import { Button } from "@/components/ui/button";
 import { field } from "@/components/shell/quick-add";
 
 type Range = "7" | "28" | "90";
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 type Metric = "views" | "subs" | "watchHours" | "revenue";
 const METRIC: Record<Metric, { label: string; unit: string; fmt: (n: number) => string }> = {
   views: { label: "Views", unit: "Views", fmt: (n) => fmt(n) },
@@ -88,6 +90,17 @@ export default function ChannelsPage() {
   const groups = s.channels.map((c) => ({ id: c.id, name: c.name, color: TONE[c.id].bg, ink: TONE[c.id].ink }));
 
   const recent = [...st.videos].reverse().slice(0, 7);
+  // Average views per weekday over the last 12 weeks.
+  const byWeekday = useMemo(() => {
+    const sums = [0, 0, 0, 0, 0, 0, 0];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    for (const d of st.days.slice(-84)) {
+      const i = (new Date(d.date + "T12:00:00").getDay() + 6) % 7;
+      sums[i] += d.views;
+      counts[i]++;
+    }
+    return sums.map((x, i) => Math.round(x / (counts[i] || 1)));
+  }, [st]);
   const upcoming = s.videos.filter((v) => v.channelId === sel && v.stage !== "live").sort((a, b) => a.publishAt.localeCompare(b.publishAt));
 
   return (
@@ -200,7 +213,7 @@ export default function ChannelsPage() {
         </Panel>
       </div>
 
-      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Panel
           framed
           title="Where the views came from"
@@ -217,37 +230,61 @@ export default function ChannelsPage() {
           <Treemap items={tiles} groups={groups} height={392} unit="views" ariaLabel={`Views by video, last ${n} days`} />
         </Panel>
 
-        <Panel title={`Recent uploads · ${channel.name}`}>
-          <div className="relative -mx-1 overflow-x-auto">
-            <table className="w-full min-w-[420px] border-collapse text-[13px]">
-              <thead>
-                <tr className="text-[12px] text-faint">
-                  <th className="pb-2 pl-1 text-left font-normal">Video</th>
-                  <th className="pb-2 text-right font-normal">Views</th>
-                  <th className="pb-2 text-right font-normal">CTR</th>
-                  <th className="pr-1 pb-2 text-right font-normal">Viewed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((v) => {
-                  const views = Object.values(v.daily).reduce((a, b) => a + b, 0);
-                  return (
-                    <tr key={v.id} className="border-t border-rule">
-                      <td className="max-w-0 py-2.5 pl-1">
-                        <div className="truncate">{v.title}</div>
-                        <div className="text-[12px] text-faint">{shortDate(fromKey(v.publishedOn))}</div>
-                      </td>
-                      <td className="num py-2.5 text-right">{compact(views)}</td>
-                      <td className="num py-2.5 text-right">{(v.ctr * 100).toFixed(1)}%</td>
-                      <td className="num py-2.5 pr-1 text-right">{Math.round(v.avdPct * 100)}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <Panel framed title="Views by weekday" aside={<span>{channel.name} · last 12 weeks</span>}>
+          <p className="text-[13px] text-muted">
+            Best day: <span className="text-text">{WEEKDAYS[byWeekday.indexOf(Math.max(...byWeekday))]}</span>, <span className="num text-text">{fmt(Math.max(...byWeekday))}</span> views on an average day. Quietest:{" "}
+            <span className="text-text">{WEEKDAYS[byWeekday.indexOf(Math.min(...byWeekday))]}</span>.
+          </p>
+          <div className="flex flex-1 items-center justify-center py-2">
+            <Radar values={byWeekday} axis={WEEKDAYS} unit="Avg. daily views" label={channel.name} />
           </div>
+          <p className="text-[12px] text-faint">Switch channels at the top and the shape follows.</p>
         </Panel>
       </div>
+
+      <Panel className="mt-5" title={`Recent uploads · ${channel.name}`} aside={<span className="num">{st.videos.length} in the last 90 days</span>}>
+        <div className="relative -mx-1 overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-[13px]">
+            <thead>
+              <tr className="text-[12px] text-faint">
+                <th className="w-[40%] pb-2 pl-1 text-left font-normal">Video</th>
+                <th className="pb-2 text-right font-normal">Published</th>
+                <th className="pb-2 text-right font-normal">First 7 days</th>
+                <th className="pb-2 text-right font-normal">Total views</th>
+                <th className="pb-2 text-right font-normal">CTR</th>
+                <th className="pb-2 text-right font-normal">Avg. viewed</th>
+                <th className="pr-1 pb-2 text-right font-normal">Est. revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((v) => {
+                const views = Object.values(v.daily).reduce((a, b) => a + b, 0);
+                const first = Object.entries(v.daily)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .slice(0, 7)
+                  .reduce((a, [, x]) => a + x, 0);
+                const max = Math.max(...recent.map((x) => Object.values(x.daily).reduce((a, b) => a + b, 0)));
+                return (
+                  <tr key={v.id} className="group border-t border-rule transition-colors hover:bg-raised/50">
+                    <td className="max-w-0 py-2.5 pl-1">
+                      <div className="truncate">{v.title}</div>
+                      <div className="mt-1 h-[2px] rounded-full bg-raised">
+                        <div className="h-full rounded-full bg-sand transition-[width] duration-500 ease-[var(--ease-out)] group-hover:bg-ember" style={{ width: `${(views / max) * 100}%` }} />
+                      </div>
+                    </td>
+                    <td className="num py-2.5 text-right text-muted">{shortDate(fromKey(v.publishedOn))}</td>
+                    <td className="num py-2.5 text-right">{compact(first)}</td>
+                    <td className="num py-2.5 text-right">{compact(views)}</td>
+                    <td className="num py-2.5 text-right">{(v.ctr * 100).toFixed(1)}%</td>
+                    <td className="num py-2.5 text-right">{Math.round(v.avdPct * 100)}%</td>
+                    <td className="num py-2.5 pr-1 text-right">${fmt((views / 1000) * channel.rpm, 2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <div id="production" className="mt-5 scroll-mt-20">
         <ProductionLine state={s} now={now} maxPerStage={99} />

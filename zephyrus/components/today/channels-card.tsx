@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ChannelId, State } from "@/lib/types";
 import type { ChannelStats } from "@/lib/stats";
 import { fromKey, shortDate } from "@/lib/time";
@@ -17,6 +17,17 @@ type Range = "7" | "28" | "90";
 export function ChannelsCard({ state, stats, className }: { state: State; stats: ChannelStats[]; className?: string }) {
   const [sel, setSel] = useState<ChannelId>("c1");
   const [range, setRange] = useState<Range>("28");
+  const tabRefs = useRef<Partial<Record<ChannelId, HTMLButtonElement | null>>>({});
+  const [bar, setBar] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const b = tabRefs.current[sel];
+      if (b) setBar({ x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [sel]);
   const n = Number(range);
 
   const tabs = state.channels.map((c) => {
@@ -55,16 +66,27 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
       }
       className={className}
     >
-      <div role="tablist" aria-label="Channel" className="-mx-1 grid grid-cols-2 gap-1">
+      <div role="tablist" aria-label="Channel" className="relative -mx-1 grid grid-cols-2 gap-1">
+        {/* One selection that travels between tabs, instead of four that blink. */}
+        <span
+          aria-hidden
+          className="absolute top-0 left-0 rounded-[12px] bg-raised transition-[transform,width,height] duration-300 ease-[var(--ease-out)] motion-reduce:transition-none"
+          style={{ width: bar.w, height: bar.h, transform: `translate(${bar.x}px, ${bar.y}px)` }}
+        >
+          <span className="absolute inset-x-2.5 bottom-0 h-[2px] rounded-full bg-ember" />
+        </span>
         {tabs.map(({ c, cur, change }) => {
           const on = c.id === sel;
           return (
             <button
               key={c.id}
+              ref={(el) => {
+                tabRefs.current[c.id] = el;
+              }}
               role="tab"
               aria-selected={on}
               onClick={() => setSel(c.id)}
-              className={cn("press relative min-w-0 rounded-[12px] px-2.5 pt-1.5 pb-2 text-left transition-colors", on ? "bg-raised" : "hover:bg-raised/50")}
+              className={cn("press relative min-w-0 rounded-[12px] px-2.5 pt-1.5 pb-2 text-left transition-colors", !on && "hover:bg-raised/40")}
             >
               <span className={cn("flex items-center gap-1.5 text-[12px]", on ? "text-text" : "text-muted")}>
                 <i className="size-1.5 shrink-0 rounded-full" style={{ background: TONE[c.id].bg }} />
@@ -77,7 +99,6 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
                   {Math.abs(change * 100).toFixed(1)}%
                 </span>
               </span>
-              <span className={cn("absolute inset-x-2.5 bottom-0 h-[2px] rounded-full transition-opacity", on ? "bg-text opacity-100" : "opacity-0")} />
             </button>
           );
         })}

@@ -8,6 +8,7 @@ import { KIND_LABEL } from "@/lib/types";
 import { addDays, dayKey, fromKey, hhmm, minutesOf, weekday } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
+import { notify, removeWithUndo } from "@/components/ui/notify";
 
 const FROM = 6 * 60;
 const TO = 24 * 60;
@@ -70,6 +71,7 @@ export function DayColumn({
   return (
     <div
       ref={ref}
+      data-day={date}
       className={cn("relative touch-pan-x select-none", className)}
       style={{ height: Y(TO) }}
       onPointerDown={down}
@@ -86,8 +88,7 @@ export function DayColumn({
           <BlockView
             key={b.id}
             b={b}
-            top={Y(b.start)}
-            height={Math.max(18, Y(b.end) - Y(b.start) - 2)}
+            pitch={pitch}
             live={isToday && nowM >= b.start && nowM < b.end}
             past={isToday ? b.end <= nowM : date < dayKey(now)}
             open={editing === b.id}
@@ -131,30 +132,106 @@ export function DayColumn({
   );
 }
 
-function BlockView({ b, top, height, live, past, open, setOpen }: { b: PlanBlock; top: number; height: number; live: boolean; past: boolean; open: boolean; setOpen: (o: boolean) => void }) {
+/**
+ * A block you can click to edit, drag to move (snapping to 15 minutes, across
+ * days on the week view) or stretch from its bottom edge. The preview moves by
+ * transform; the saved time changes only when you let go.
+ */
+function BlockView({ b, pitch, live, past, open, setOpen }: { b: PlanBlock; pitch: number; live: boolean; past: boolean; open: boolean; setOpen: (o: boolean) => void }) {
+  const [drag, setDrag] = useState<{ start: number; end: number; date: string; dx: number } | null>(null);
+  const g = useRef<{ x: number; y: number; mode: "move" | "resize"; active: boolean; colLeft: number; id: number } | null>(null);
+  const moved = useRef(false);
+  const Y = (m: number) => ((m - FROM) / 60) * pitch;
+  const cur = drag ?? { start: b.start, end: b.end, date: b.date, dx: 0 };
+  const top = Y(cur.start);
+  const height = Math.max(18, Y(cur.end) - Y(cur.start) - 2);
+
+  const down = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const col = e.currentTarget.closest("[data-day]") as HTMLElement | null;
+    g.current = { x: e.clientX, y: e.clientY, mode: r.bottom - e.clientY < 8 ? "resize" : "move", active: false, colLeft: col?.getBoundingClientRect().left ?? 0, id: e.pointerId };
+  };
+  const move = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const s = g.current;
+    if (!s) return;
+    if (!s.active) {
+      if (Math.abs(e.clientY - s.y) < 4 && Math.abs(e.clientX - s.x) < 4) return;
+      s.active = true;
+      e.currentTarget.setPointerCapture(s.id);
+      setOpen(false);
+    }
+    const dm = snap(((e.clientY - s.y) / pitch) * 60);
+    if (s.mode === "resize") {
+      setDrag({ start: b.start, end: Math.min(TO, Math.max(b.start + 15, b.end + dm)), date: b.date, dx: 0 });
+      return;
+    }
+    const len = b.end - b.start;
+    const start = Math.max(FROM, Math.min(TO - len, b.start + dm));
+    // Which day is under the pointer (the week view has seven columns).
+    const under = document.elementsFromPoint(e.clientX, e.clientY).find((el) => (el as HTMLElement).dataset?.day) as HTMLElement | undefined;
+    const date = under?.dataset.day ?? b.date;
+    const dx = under ? under.getBoundingClientRect().left - s.colLeft : 0;
+    setDrag({ start, end: start + len, date, dx });
+  };
+  const up = () => {
+    const s = g.current;
+    g.current = null;
+    if (!s?.active || !drag) {
+      setDrag(null);
+      return;
+    }
+    moved.current = true;
+    const before = { start: b.start, end: b.end, date: b.date };
+    const after = { start: drag.start, end: drag.end, date: drag.date };
+    setDrag(null);
+    if (before.start === after.start && before.end === after.end && before.date === after.date) return;
+    actions.updateBlock(b.id, after);
+    const day = after.date === before.date ? "" : ` on ${weekday(fromKey(after.date))}`;
+    notify(s.mode === "resize" ? `Now ends at ${hhmm(after.end)}` : `Moved to ${hhmm(after.start)}${day}`, {
+      detail: b.title,
+      undo: () => actions.updateBlock(b.id, before),
+    });
+  };
+
   return (
     <>
       <button
         data-block
-        onClick={() => setOpen(!open)}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={() => {
+          g.current = null;
+          setDrag(null);
+        }}
+        onClick={() => {
+          if (moved.current) {
+            moved.current = false;
+            return;
+          }
+          setOpen(!open);
+        }}
         aria-label={`${b.title}, ${hhmm(b.start)} to ${hhmm(b.end)}, ${KIND_LABEL[b.kind]}`}
         className={cn(
-          "press absolute inset-x-0 overflow-hidden rounded-[8px] border px-2 text-left hover:border-sand",
+          "group/block absolute inset-x-0 overflow-hidden rounded-[8px] border px-2 text-left hover:border-sand md:cursor-grab",
           blockClass[b.kind],
           live && "lit",
-          past && !live && "opacity-55",
+          past && !live && !drag && "opacity-55",
+          drag ? "z-30 cursor-grabbing border-sand shadow-[0_16px_34px_-14px_rgb(0_0_0/0.95)]" : "press transition-[top,height] duration-200 ease-[var(--ease-out)]",
         )}
-        style={{ top, height }}
+        style={{ top, height, transform: drag ? `translateX(${drag.dx}px)` : undefined }}
       >
         <span className={cn("block truncate text-[13px] leading-4", height < 30 ? "pt-0.5" : "pt-1")}>
           {b.title}
-          {height < 30 && <span className="num ml-1.5 text-[12px] text-muted">{hhmm(b.start)}</span>}
+          {height < 30 && <span className="num ml-1.5 text-[12px] text-muted">{hhmm(cur.start)}</span>}
         </span>
         {height >= 30 && (
-          <span className="num block text-[12px] leading-4 text-muted">
-            {hhmm(b.start)}–{hhmm(b.end)}
+          <span className={cn("num block text-[12px] leading-4", drag ? "text-text" : "text-muted")}>
+            {hhmm(cur.start)}–{hhmm(cur.end)}
           </span>
         )}
+        <span aria-hidden className="absolute inset-x-3 bottom-0.5 hidden h-[3px] cursor-ns-resize rounded-full bg-sand/0 transition-colors group-hover/block:bg-sand/50 md:block" />
       </button>
       {open && (
         <BlockEditor
@@ -166,8 +243,8 @@ function BlockView({ b, top, height, live, past, open, setOpen }: { b: PlanBlock
             setOpen(false);
           }}
           onDelete={() => {
-            actions.removeBlock(b.id);
             setOpen(false);
+            removeWithUndo("blocks", b.id, `“${b.title}”`, actions.removeBlock);
           }}
         />
       )}
@@ -275,8 +352,9 @@ export function HourlyPlanner({ state, now }: { state: State; now: number }) {
         </div>
       }
       bodyClassName="pb-3"
+      className="xl:min-h-[400px] xl:flex-1"
     >
-      <div ref={scroller} className="-mr-2 h-[272px] overflow-y-auto pt-2 pr-2">
+      <div ref={scroller} className="-mr-2 h-[272px] overflow-y-auto pt-2 pr-2 xl:h-auto xl:min-h-0 xl:flex-1 xl:basis-0">
         <DayColumn state={state} date={date} now={now} pitch={pitch} />
       </div>
       <div className="mt-2.5 flex items-center gap-2.5 text-[12px] whitespace-nowrap text-faint">

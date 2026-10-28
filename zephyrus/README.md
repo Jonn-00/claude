@@ -17,10 +17,19 @@ For a production build: `npm run build && npm start`.
 | Page | What it's for |
 | --- | --- |
 | **Today** | The production line (every video moving Idea → Live), channel views, calls against your daily dial target, the hourly planner, reminders, and the folded daily agenda. |
-| **Channels** | Per-channel views, watch time, subscribers and revenue; where the views came from (treemap); recent uploads; rename channels here. |
-| **Agency** | Dials per day against target, reach and close numbers by niche, one-tap call logging, and the lead list with status, next call and notes. |
+| **Channels** | Per-channel views, watch time, subscribers and revenue; where the views came from (treemap); views by weekday (radar); recent uploads; rename channels here. |
+| **Agency** | Dials per day against target, reach and close numbers by niche, one-tap call logging, when people pick up by hour, this month's closes with the current pace carried to month end, and the lead list. |
 | **Planner** | The week in blocks. Drag down a day to add one; click a block to rename, change its kind or delete it. |
-| **Notes** | Quick notes and every past daily report. |
+| **Notes** | Today's work flowing into your stack of daily reports, quick notes, and every past report. |
+
+## Things you can drag, hold and undo
+
+- **Production line:** drag a video onto another stage (or click it for a menu). A dot runs along the line from the old stage to the new one.
+- **Planner blocks:** drag to move them (onto another day on the Planner page), drag the bottom edge to change the end time, drag down an empty stretch to make a new one. Everything snaps to 15 minutes.
+- **Undo:** moving a video or block, logging a call, and deleting anything shows a toast with Undo for five seconds. No "are you sure?" pop-ups.
+- **Reset to sample data** (Settings) is hold-to-confirm: keep it pressed until the fill finishes.
+- **Charts:** hover or drag across any line, bar, wave or radar to read values. Channel tabs, the niche switch on "When people pick up" and the channel tabs on Channels all redraw in place.
+- **Needs-you glow:** anything late, due today or overdue has a warm light that leans toward your cursor.
 
 ## Keys
 

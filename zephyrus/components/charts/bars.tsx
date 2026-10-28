@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { compact, niceTicks } from "@/lib/utils";
-import { tip } from "@/components/ui/tooltip";
 import { useSize } from "./use-size";
 
 /** Square-cornered columns; the current period in ember, the rest in sand. */
@@ -29,7 +28,7 @@ export function Bars({
   const top = 8;
   const bot = 24;
   const padR = 40;
-  const ticks = niceTicks(Math.max(...data.map((d) => d.value), reference?.value ?? 0, 1), 3);
+  const ticks = niceTicks(Math.max(...data.map((d) => d.value), reference?.value ?? 0, 1) * 1.12, 3);
   const max = ticks[ticks.length - 1];
   const slot = (W - padR) / Math.max(1, data.length);
   const bw = Math.min(44, slot * 0.62);
@@ -50,17 +49,25 @@ export function Bars({
             const x = i * slot + (slot - bw) / 2;
             const y = Y(d.value);
             const on = i === highlight;
+            const h = Math.max(0, H - bot - y);
+            const r = Math.min(4, bw / 4, h);
+            const label = hover === i || (hover === null && on);
             return (
               <g key={i}>
-                <rect
-                  x={x}
-                  y={y}
-                  width={bw}
-                  height={Math.max(0, H - bot - y)}
-                  fill={on ? "var(--ember)" : "var(--dune)"}
-                  opacity={hover === null || hover === i ? 1 : 0.55}
-                  style={{ transition: "opacity 160ms ease" }}
+                <path
+                  d={`M${x},${H - bot}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${H - bot}Z`}
+                  fill={on ? "var(--ember)" : hover === i ? "var(--sand)" : "var(--dune)"}
+                  opacity={hover === null || hover === i || on ? 1 : 0.6}
+                  style={{ transition: "opacity 160ms ease, fill 160ms ease" }}
                 />
+                {label && h > 0 && (
+                  <g pointerEvents="none">
+                    <rect x={x + bw / 2 - 18} y={y - 24} width={36} height={18} rx={9} fill={on ? "var(--ember)" : "var(--text)"} />
+                    <text x={x + bw / 2} y={y - 11} fontSize={11} fontWeight={600} textAnchor="middle" fill="var(--ground)" className="num">
+                      {format(d.value)}
+                    </text>
+                  </g>
+                )}
                 {(slot >= 30 || (data.length - 1 - i) % 2 === 0) && (
                   <text x={x + bw / 2} y={H - 6} fontSize={11} textAnchor={i === data.length - 1 && slot < 40 ? "end" : "middle"} fill={on ? "var(--text)" : "var(--faint)"}>
                     {d.label}
@@ -72,15 +79,8 @@ export function Bars({
                   width={slot}
                   height={H}
                   fill="transparent"
-                  onPointerMove={(e) => {
-                    setHover(i);
-                    const r = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
-                    tip.show(r.left + x + bw / 2, r.top + y, { title: d.sub ?? d.label, rows: [{ label: unit, value: format(d.value), swatch: on ? "var(--ember)" : "var(--dune)" }] });
-                  }}
-                  onPointerLeave={() => {
-                    setHover(null);
-                    tip.hide();
-                  }}
+                  onPointerMove={() => setHover(i)}
+                  onPointerLeave={() => setHover(null)}
                 />
               </g>
             );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Undo2 } from "lucide-react";
+import { Phone } from "lucide-react";
 import { actions } from "@/lib/store";
 import { callbacks, countCalls } from "@/lib/derive";
 import type { Niche, Outcome, State } from "@/lib/types";
@@ -11,23 +11,26 @@ import { cn, fmt } from "@/lib/utils";
 import { Panel } from "@/components/ui/panel";
 import { Segmented } from "@/components/ui/segmented";
 import { CountUp } from "@/components/ui/count-up";
+import { OutcomeButtons } from "@/components/ui/outcome-buttons";
+import { notify } from "@/components/ui/notify";
 
-const OUTCOMES: Outcome[] = ["noanswer", "talked", "interested", "demo", "won"];
 
 /** Logging a dial is the agency's most frequent job, so it's one tap from Today. */
 export function CallsCard({ state, now, className }: { state: State; now: number; className?: string }) {
   const today = dayKey(now);
   const [niche, setNiche] = useState<Niche>("realestate");
-  const [last, setLast] = useState<{ id: string; label: string } | null>(null);
   const c = countCalls(state.calls, today, today);
   const target = state.settings.dialTarget;
   const left = Math.max(0, target - c.dials);
   const cbs = callbacks(state.leads, now).slice(0, 3);
   const ratio = Math.min(1, c.dials / target);
 
+  const byOutcome = { noanswer: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
+  for (const e of state.calls) if (dayKey(new Date(e.at)) === today) byOutcome[e.outcome]++;
+
   const log = (o: Outcome) => {
     const id = actions.logCall({ niche, outcome: o });
-    setLast({ id, label: `${OUTCOME_LABEL[o]} · ${NICHE_LABEL[niche].toLowerCase()}` });
+    notify(`Logged: ${OUTCOME_LABEL[o]}`, { detail: `${NICHE_LABEL[niche]} · dial ${c.dials + 1} of ${target}`, undo: () => actions.undoCall(id) });
   };
 
   return (
@@ -69,36 +72,7 @@ export function CallsCard({ state, now, className }: { state: State; now: number
             ]}
           />
         </div>
-        <div className="mt-2.5 grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5">
-          {OUTCOMES.map((o) => (
-            <button
-              key={o}
-              onClick={() => log(o)}
-              className={cn(
-                "press h-8 rounded-full border px-2.5 text-[13px] whitespace-nowrap",
-                o === "noanswer" ? "border-control text-muted hover:text-text" : "border-control text-text hover:border-sand",
-              )}
-            >
-              {OUTCOME_LABEL[o]}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 flex h-5 items-center gap-2 text-[12px] text-faint" aria-live="polite">
-          {last && (
-            <>
-              <span className="truncate">Logged: {last.label}</span>
-              <button
-                className="inline-flex items-center gap-1 text-muted underline-offset-2 hover:text-text hover:underline"
-                onClick={() => {
-                  actions.undoCall(last.id);
-                  setLast(null);
-                }}
-              >
-                <Undo2 size={12} /> Undo
-              </button>
-            </>
-          )}
-        </div>
+        <OutcomeButtons counts={byOutcome} onLog={log} className="mt-2.5" />
       </div>
 
       <h3 className="mt-4 mb-1 text-[13px] text-muted">Callbacks due</h3>

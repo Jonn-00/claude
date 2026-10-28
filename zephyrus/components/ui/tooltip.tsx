@@ -38,21 +38,21 @@ export function ChartTooltip() {
       ref={box}
       role="tooltip"
       className={cn(
-        "pointer-events-none fixed z-50 rounded-[10px] border border-control bg-raised px-2.5 py-2 text-[12px] shadow-[0_10px_30px_-12px_rgb(0_0_0/0.8)] transition-opacity duration-150",
-        state ? "opacity-100" : "opacity-0",
+        "pointer-events-none fixed z-50 rounded-[12px] bg-text px-3 py-2 text-[12px] text-ground shadow-[0_14px_34px_-12px_rgb(0_0_0/0.9)] transition-[opacity,transform] duration-150 ease-[var(--ease-out)]",
+        state ? "scale-100 opacity-100" : "scale-[0.97] opacity-0",
       )}
       style={{ left: pos.l, top: pos.t }}
     >
       {state && (
         <>
-          <div className="mb-1 text-muted">{state.title}</div>
+          <div className="mb-1 text-[#5d5248]">{state.title}</div>
           {state.rows.map((r) => (
             <div key={r.label} className="flex items-center justify-between gap-4">
-              <span className="inline-flex items-center gap-1.5 text-muted">
+              <span className="inline-flex items-center gap-1.5 text-[#5d5248]">
                 {r.swatch && <i className="inline-block size-2 rounded-[2px]" style={{ background: r.swatch }} />}
                 {r.label}
               </span>
-              <b className="num font-medium text-text">{r.value}</b>
+              <b className="num font-semibold text-ground">{r.value}</b>
             </div>
           ))}
         </>

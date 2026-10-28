@@ -83,7 +83,8 @@ export function LineChart({
         <svg width={W} height={H} className="block touch-none" role="img" aria-label={ariaLabel}>
           <defs>
             <linearGradient id={`${id}f`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor={color} stopOpacity="0.16" />
+              <stop offset="0" stopColor={color} stopOpacity="0.32" />
+              <stop offset="0.55" stopColor={color} stopOpacity="0.08" />
               <stop offset="1" stopColor={color} stopOpacity="0" />
             </linearGradient>
           </defs>
@@ -120,8 +121,9 @@ export function LineChart({
           ))}
           {hover !== null ? (
             <>
-              <line x1={P[hover][0]} x2={P[hover][0]} y1={top} y2={H - bot} stroke="var(--sand)" strokeOpacity={0.6} strokeWidth={1} />
-              <circle cx={P[hover][0]} cy={P[hover][1]} r={4.5} fill={color} stroke="var(--surface)" strokeWidth={2} />
+              <line x1={P[hover][0]} x2={P[hover][0]} y1={top} y2={H - bot} stroke="var(--sand)" strokeOpacity={0.6} strokeWidth={1} strokeDasharray="3 3" />
+              <circle cx={P[hover][0]} cy={P[hover][1]} r={10} fill={color} opacity={0.18} />
+              <circle cx={P[hover][0]} cy={P[hover][1]} r={4.5} fill="var(--text)" stroke={color} strokeWidth={2.5} />
             </>
           ) : (
             <circle cx={P[n - 1][0]} cy={P[n - 1][1]} r={4} fill={color} stroke="var(--surface)" strokeWidth={2} />
