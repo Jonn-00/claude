@@ -5,3 +5,6 @@ __pycache__/
 data/
 *.egg-info/
 .playwright-mcp/
+.taste-skill/inspect/
+.taste-skill/before/
+.taste-skill/after/
