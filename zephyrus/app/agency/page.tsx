@@ -343,6 +343,7 @@ function Agency() {
                     <div className="truncate text-[12px] text-faint">
                       {l.contact} · {NICHE_LABEL[l.niche]} · {l.city}
                     </div>
+                    <div className="num text-[12px] text-muted select-all">{l.phone}</div>
                   </div>
                   <a href={`tel:${l.phone.replace(/\s/g, "")}`} className="press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-control px-3 text-[13px]">
                     <Phone size={13} /> Call
@@ -420,7 +421,7 @@ function LeadRow({ l, now, focused }: { l: Lead; now: number; focused: boolean }
       <td className="max-w-0 py-2.5 pl-2">
         <div className="truncate">{l.business}</div>
         <div className="truncate text-[12px] text-faint">
-          {l.contact} · {l.city}
+          {l.contact} · {l.city} · <span className="num select-all">{l.phone}</span>
         </div>
       </td>
       <td className="py-2.5 whitespace-nowrap text-muted">{NICHE_LABEL[l.niche]}</td>

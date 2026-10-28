@@ -93,8 +93,10 @@ export function seed(now = Date.now()): State {
       const mins = nowDate.getHours() * 60 + nowDate.getMinutes();
       count = Math.round(Math.max(0, Math.min(1, (mins - 540) / 480)) * 60);
     }
+    // Today's dials only run up to now; past days fill 09:00–17:00.
+    const span = back === 0 ? Math.max(0, Math.min(480, nowDate.getHours() * 60 + nowDate.getMinutes() - 545)) : 480;
     for (let i = 0; i < count; i++) {
-      const mins = 540 + Math.floor((i / Math.max(count, 1)) * 480) + Math.floor(r() * 6);
+      const mins = 540 + Math.floor((i / Math.max(count, 1)) * span) + Math.floor(r() * 6);
       const d = fromKey(day);
       d.setHours(0, mins, 0, 0);
       const niche: Niche = r() < 0.55 ? "realestate" : "detailing";

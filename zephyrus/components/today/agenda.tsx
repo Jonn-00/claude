@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { actions } from "@/lib/store";
 import type { AgendaEntry, State } from "@/lib/types";
@@ -20,6 +20,11 @@ const OPEN_KEY = "zephyrus:agenda-open";
 export function Agenda({ state, now }: { state: State; now: number }) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(dayKey(now));
+  // Folded content can't be tabbed into. Set directly so it works on React 18 and 19 alike.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.toggleAttribute("inert", !open);
+  }, [open]);
   useEffect(() => {
     try {
       setOpen(localStorage.getItem(OPEN_KEY) === "1");
@@ -68,7 +73,7 @@ export function Agenda({ state, now }: { state: State; now: number }) {
       </button>
       <div id="agenda-body" className={cn("grid transition-[grid-template-rows] duration-250 ease-[var(--ease-out)] motion-reduce:transition-none", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="overflow-hidden">
-          <div className="px-5 pb-5" inert={!open}>
+          <div ref={bodyRef} className="px-5 pb-5">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[13px] text-muted">{longDate(fromKey(date))}</span>
               <div className="flex items-center gap-0.5">
