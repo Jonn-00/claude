@@ -120,7 +120,7 @@ export function ChannelsCard({ state, stats, className }: { state: State; stats:
         <LineChart points={points} marks={marks} height="fill" unit="Views" format={(v) => fmt(v)} ariaLabel={`${channel.name} daily views, last ${n} days`} />
       </div>
       <p className="mt-2 text-[12px] text-faint">
-        Ticks under the line are upload days. {channel.real?.views30 ? "Scaled to your numbers." : "Estimates until you add your numbers on Channels."}
+        Ticks under the line are upload days. {st.youtube ? "Real views from YouTube, spread over the days after each upload." : channel.real?.views30 ? "Scaled to your numbers." : "Estimates until you add your numbers on Channels."}
       </p>
     </Panel>
   );

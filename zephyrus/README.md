@@ -29,7 +29,7 @@ For a production build: `npm run build && npm start`.
 - **Production line:** drag a video onto another stage (or click it for a menu). A dot runs along the line from the old stage to the new one.
 - **Planner blocks:** drag to move them (onto another day on the Planner page), drag the bottom edge to change the end time, drag down an empty stretch to make a new one. Everything snaps to 15 minutes.
 - **Undo:** moving a video or block, logging a call, and deleting anything shows a toast with Undo for five seconds. No "are you sure?" pop-ups.
-- **Reset to sample data** (Settings) is hold-to-confirm: keep it pressed until the fill finishes.
+- **Clear and reset** (Settings) are hold-to-confirm: keep it pressed until the fill finishes.
 - **Charts:** hover or drag across any line, bar, wave or radar to read values. Channel tabs, the niche switch on "When people pick up" and the channel tabs on Channels all redraw in place.
 - **Needs-you glow:** anything late, due today or overdue has a warm light that leans toward your cursor.
 
@@ -40,7 +40,7 @@ Almost everything is edited where it sits: click a name or title (stage names, c
 - **Production line:** click a video to edit its title, channel, stage and go-live time. Hover a column for its menu: add a video there, rename the stage, add a stage after it, or remove it (its videos move to the stage before; Undo puts it all back). Scheduled and Live can be renamed but not removed.
 - **Channels:** name, handle and niche on the Channels page, with links to the channel on YouTube and Social Blade.
 - **Sidebar:** the button next to the logo (or `[`) folds it to icons.
-- **Settings:** hold to clear the sample data (keeps your channels, stages, names and settings), or hold to reset everything to the sample.
+- **Settings:** hold to clear everything you've added (keeps your channels, stages, names and settings), or hold to reset everything to how it started.
 
 ## Keys
 
@@ -54,9 +54,9 @@ Almost everything is edited where it sits: click a name or title (stage names, c
 
 ## Your data
 
-Everything you add is saved in your browser (`localStorage`), so it stays on that computer and browser. Settings (bottom of the sidebar) holds the dial target (60), the deal value (120 CAD) and a reset to the sample data.
+Everything you add is saved in your browser (`localStorage`), so it stays on that computer and browser. Settings (bottom of the sidebar) holds the dial target (60), the deal value (120 CAD), a clear and a full reset.
 
-The app opens with **sample data** for the agency (leads, dials), the planner and the production line, so you can see it working; edit or delete it.
+The app starts **empty** apart from your four channels: no made-up leads, dials, videos, planner blocks, reminders or notes. Everything you see is something you added. (Earlier versions opened with sample data; it's removed automatically the next time the app loads, and anything you added yourself stays.)
 
 **Channel numbers are real**, read from YouTube's public pages and RSS feeds on Oct 28, 2026 (`lib/youtube-snapshot.json`): subscribers (YouTube rounds them), upload count, and every upload's title, date and lifetime views. 14 older uploads YouTube didn't date publicly have their date placed between neighbours and a rounded view count; they're marked ~. What YouTube only shows in Studio stays estimated: how views split across days, watch time, CTR and revenue (about $0.05 per 1,000 Shorts views, the channel's RPM for longer videos). If you change a channel's handle, that channel goes back to estimates; for channels without YouTube data you can type your own numbers on the Channels page. Social Blade blocks automated visits, so the figures come from YouTube directly.
 

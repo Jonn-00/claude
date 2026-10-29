@@ -30,7 +30,7 @@ export function Forecast({
   const top = 22;
   const bot = 24;
   const n = points.length;
-  const ticks = niceTicks(Math.max(...points.map((p) => p.value), 1), 3);
+  const ticks = niceTicks(Math.max(...points.map((p) => p.value), 1), 3, true);
   const max = ticks[ticks.length - 1];
   const X = (i: number) => padL + (i / Math.max(1, n - 1)) * (W - padL - padR);
   const Y = (v: number) => top + (1 - v / max) * (H - top - bot);

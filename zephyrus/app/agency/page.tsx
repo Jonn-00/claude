@@ -187,7 +187,7 @@ function Agency() {
         </Panel>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-12 xl:grid-cols-4">
-          <Tile tone="solid" index={2} label="Closed this month" value={`${fmt(month.won * deal)}`} unit="CAD" sub={`${month.won} × ${deal} CAD, of ~${fmt(forecast.end)} at this pace`}>
+          <Tile tone="solid" index={2} label="Closed this month" value={`${fmt(month.won * deal)}`} unit="CAD" sub={month.won ? `${month.won} × ${deal} CAD, of ~${fmt(forecast.end)} at this pace` : "No deals yet this month"}>
             <Ticks ratio={forecast.end ? (month.won * deal) / forecast.end : 0} lit="#fff" off="rgb(0 0 0 / .25)" label="Closed so far against this month's pace" delay={200} />
           </Tile>
           <Tile tone="glass" index={3} label="Dials today" value={fmt(t.dials)} unit={`/ ${target}`} sub={t.dials >= target ? "Target hit" : `${target - t.dials} to go`} subTone={t.dials >= target ? "positive" : undefined}>
@@ -244,6 +244,7 @@ function Agency() {
             <p className="text-[12px] text-faint">Picking a lead updates its status: Interested, Demo booked or Client. Numbers are today's count.</p>
           </div>
           <h3 className="mt-4 mb-1 text-[13px] text-muted">Latest dials</h3>
+          {s.calls.length === 0 && <p className="rounded-[10px] border border-dashed border-border px-3 py-2.5 text-[13px] text-faint">No dials yet. Tap an outcome above after each call.</p>}
           <ul className="divide-y divide-rule">
             {[...s.calls]
               .reverse()

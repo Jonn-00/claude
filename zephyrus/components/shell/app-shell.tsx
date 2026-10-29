@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CalendarClock, Clapperboard, LayoutGrid, Menu, NotebookPen, PanelLeftClose, PanelLeftOpen, PhoneCall, Search, Settings2, X } from "lucide-react";
-import { actions, resetSample, startFresh, useAppState } from "@/lib/store";
+import { actions, resetAll, startFresh, useAppState } from "@/lib/store";
 import { callbacks } from "@/lib/derive";
 import { dayKey, minutesOf, timeOf, until, useNow, hhmm } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -297,20 +297,20 @@ function SettingsMenu({ open, setOpen, rail = false }: { open: boolean; setOpen:
             onConfirm={() => {
               startFresh();
               setOpen(false);
-              notify("Started fresh", { detail: "Kept your channels, stages, names and settings" });
+              notify("Cleared", { detail: "Kept your channels, stages, names and settings" });
             }}
           >
-            Hold to clear the sample data
+            Hold to clear everything you&apos;ve added
           </HoldButton>
           <HoldButton
             className="mt-2 h-8 w-full rounded-full text-[13px] text-faint hover:text-text"
             onConfirm={() => {
-              resetSample();
+              resetAll();
               setOpen(false);
-              notify("Back to the sample data");
+              notify("Reset", { detail: "Channels, stages, names and settings are back to how they started" });
             }}
           >
-            Hold to reset to sample data
+            Hold to reset everything
           </HoldButton>
         </div>
       )}

@@ -21,7 +21,7 @@ function load(): State {
       if (parsed.version === 1) return migrate(parsed);
     }
   } catch {
-    /* private window or blocked storage: run from the sample */
+    /* private window or blocked storage: run from a first-run state */
   }
   return seed();
 }
@@ -35,7 +35,11 @@ function save(s: State) {
 }
 
 function get(): State {
-  if (!state) state = load();
+  if (!state) {
+    state = load();
+    // Write the up-to-date shape back, so removed sample items leave storage too.
+    save(state);
+  }
   return state;
 }
 
@@ -80,7 +84,8 @@ export function locate<K extends Coll>(key: K, id: string) {
   return index < 0 ? null : { item: arr[index] as State[K][number], index };
 }
 
-export function resetSample() {
+/** Back to a first run: your channels as they were, default stages and settings, nothing else. */
+export function resetAll() {
   setState(() => seed());
 }
 

@@ -28,7 +28,7 @@ export function Bars({
   const top = 8;
   const bot = 24;
   const padR = 40;
-  const ticks = niceTicks(Math.max(...data.map((d) => d.value), reference?.value ?? 0, 1) * 1.12, 3);
+  const ticks = niceTicks(Math.max(...data.map((d) => d.value), reference?.value ?? 0, 1) * 1.12, 3, true);
   const max = ticks[ticks.length - 1];
   const slot = (W - padR) / Math.max(1, data.length);
   const bw = Math.min(44, slot * 0.62);

@@ -24,7 +24,7 @@ export const pct = (n: number, digits = 1) => signed(n * 100, digits) + "%";
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
-/** Deterministic PRNG so sample data is stable between loads. */
+/** Deterministic PRNG so estimates are stable between loads. */
 export function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -37,11 +37,13 @@ export function rng(seed: number) {
 }
 
 /** Round, even axis steps: the top tick sits above the maximum. */
-export function niceTicks(max: number, count = 4) {
+/** Round axis ticks. Counts and money in whole units pass integer, so a tiny max never repeats "1". */
+export function niceTicks(max: number, count = 4, integer = false) {
   if (max <= 0) return [0, 1];
   const raw = max / count;
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
+  const nice = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
+  const step = integer ? Math.max(1, Math.round(nice)) : nice;
   const top = Math.ceil((max * 1.0001) / step) * step;
   const ticks: number[] = [];
   for (let v = 0; v <= top + 1e-9; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
