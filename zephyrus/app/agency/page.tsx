@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Phone, Search, Trash2 } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
 import { actions, useAppState } from "@/lib/store";
 import { countCalls, lastNDays, monthStart } from "@/lib/derive";
-import type { Lead, LeadStatus, Niche, Outcome } from "@/lib/types";
-import { LEAD_STATUS_LABEL, NICHE_LABEL, OUTCOME_LABEL } from "@/lib/types";
+import type { LeadStatus, Niche, Outcome } from "@/lib/types";
+import { NICHE_LABEL, OUTCOME_LABEL, reached } from "@/lib/types";
+import { CallQueue } from "@/components/agency/call-queue";
 import { addDays, dayKey, fromKey, relDay, shortDate, useNow, weekday } from "@/lib/time";
 import { cn, fmt } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,23 +16,10 @@ import { Segmented } from "@/components/ui/segmented";
 import { Bars } from "@/components/charts/bars";
 import { Waves } from "@/components/charts/waves";
 import { Forecast } from "@/components/charts/forecast";
-import { CountUp } from "@/components/ui/count-up";
-import { notify, removeWithUndo } from "@/components/ui/notify";
+import { notify } from "@/components/ui/notify";
 import { OutcomeButtons } from "@/components/ui/outcome-buttons";
-import { Editable } from "@/components/ui/editable";
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
-const STATUS_ORDER: LeadStatus[] = ["callback", "interested", "demo", "new", "won", "lost"];
-
-const pill: Record<LeadStatus, string> = {
-  new: "bg-raised text-muted",
-  callback: "bg-ember-tint text-ember-soft",
-  interested: "bg-[#2a2016] text-[#e8c49a]",
-  demo: "bg-[#2a2016] text-[#e8c49a]",
-  won: "bg-positive-bg text-positive",
-  lost: "bg-raised text-faint",
-};
-
 export default function AgencyPage() {
   return (
     <Suspense>
@@ -51,19 +38,8 @@ function Agency() {
 
   const [niche, setNiche] = useState<Niche>("realestate");
   const [leadId, setLeadId] = useState<string>("");
-  const [filter, setFilter] = useState<LeadStatus | "all">("all");
-  const [nicheFilter, setNicheFilter] = useState<Niche | "all">("all");
-  const [q, setQ] = useState("");
   const focus = params.get("lead");
 
-  useEffect(() => {
-    if (!focus) return;
-    const t = setTimeout(() => {
-      const row = [document.getElementById(`lead-${focus}`), document.getElementById(`lead-m-${focus}`)].find((el) => el && el.offsetParent !== null);
-      row?.scrollIntoView({ block: "center" });
-    }, 50);
-    return () => clearTimeout(t);
-  }, [focus]);
 
   const t = countCalls(s.calls, today, today);
   const week = countCalls(s.calls, addDays(today, -6), today);
@@ -85,7 +61,7 @@ function Agency() {
       const hi = HOURS.indexOf(new Date(e.at).getHours());
       if (k > 2 || hi < 0) continue;
       above[k][hi]++;
-      if (e.outcome !== "noanswer") below[k][hi]++;
+      if (reached(e.outcome)) below[k][hi]++;
     }
     return { above, below };
   }, [s.calls, waveNiche, today]);
@@ -120,12 +96,12 @@ function Agency() {
   const pipeline = useMemo(() => {
     const count = (...st: LeadStatus[]) => s.leads.filter((l) => st.includes(l.status)).length;
     const parts = [
-      { label: "Call back", value: count("callback"), color: "#ff6a1a" },
-      { label: "Interested or demo", value: count("interested", "demo"), color: "#f2b183" },
-      { label: "Clients", value: count("won"), color: "#4fd39e" },
-      { label: "Not called", value: count("new"), color: "rgb(255 255 255 / .38)" },
+      { label: "Following up", value: count("noanswer", "voicemail", "callback"), color: "#ff6a1a" },
+      { label: "Sample, interested or demo", value: count("sample", "interested", "demo"), color: "#f2b183" },
+      { label: "Won", value: count("won"), color: "#4fd39e" },
+      { label: "To call", value: count("new"), color: "rgb(255 255 255 / .38)" },
     ];
-    return { parts, total: parts.reduce((a, p) => a + p.value, 0), inPlay: count("callback", "interested", "demo") };
+    return { parts, total: parts.reduce((a, p) => a + p.value, 0), inPlay: count("callback", "sample", "interested", "demo") };
   }, [s.leads]);
 
   const days = lastNDays(today, 14);
@@ -133,23 +109,13 @@ function Agency() {
 
   const byNiche = (["realestate", "detailing"] as Niche[]).map((n) => ({ n, c: countCalls(s.calls, addDays(today, -29), today, n) }));
 
-  const leads = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return s.leads
-      .filter((l) => filter === "all" || l.status === filter)
-      .filter((l) => nicheFilter === "all" || l.niche === nicheFilter)
-      .filter((l) => !term || `${l.business} ${l.contact} ${l.city} ${l.note}`.toLowerCase().includes(term))
-      .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || (a.nextAt ?? "z").localeCompare(b.nextAt ?? "z"));
-  }, [s.leads, filter, nicheFilter, q]);
-  const counts = Object.fromEntries(STATUS_ORDER.map((st) => [st, s.leads.filter((l) => l.status === st && (nicheFilter === "all" || l.niche === nicheFilter)).length]));
-
   const log = (o: Outcome) => {
     const lead = s.leads.find((l) => l.id === leadId);
     const n = lead?.niche ?? niche;
     const id = actions.logCall({ niche: n, outcome: o, leadId: lead?.id });
     notify(`Logged: ${OUTCOME_LABEL[o]}`, { detail: lead ? lead.business : `Cold call · ${NICHE_LABEL[n].toLowerCase()}`, undo: () => actions.undoCall(id, lead) });
   };
-  const byOutcome = { noanswer: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
+  const byOutcome = { noanswer: 0, voicemail: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
   for (const e of s.calls) if (dayKey(new Date(e.at)) === today) byOutcome[e.outcome]++;
 
   return (
@@ -241,7 +207,7 @@ function Agency() {
               />
             )}
             <OutcomeButtons counts={byOutcome} onLog={log} size="lg" />
-            <p className="text-[12px] text-faint">Picking a lead updates its status: Interested, Demo booked or Client. Numbers are today's count.</p>
+            <p className="text-[12px] text-faint">Picking a lead updates its status and call history. Numbers are today's count.</p>
           </div>
           <h3 className="mt-4 mb-1 text-[13px] text-muted">Latest dials</h3>
           {s.calls.length === 0 && <p className="rounded-[10px] border border-dashed border-border px-3 py-2.5 text-[13px] text-faint">No dials yet. Tap an outcome above after each call.</p>}
@@ -353,214 +319,9 @@ function Agency() {
         </Panel>
       </div>
 
-      <Panel
-        tone="glass"
-        index={10}
-        className="mt-4"
-        title="Leads"
-        aside={
-          <label className="flex h-8 items-center gap-2 rounded-full border border-border bg-raised px-3">
-            <Search size={14} className="text-faint" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search leads" aria-label="Search leads" className="w-[150px] bg-transparent text-[13px] text-text outline-none" />
-          </label>
-        }
-      >
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <FilterChip on={filter === "all"} onClick={() => setFilter("all")}>
-            All <span className="num text-faint">{s.leads.filter((l) => nicheFilter === "all" || l.niche === nicheFilter).length}</span>
-          </FilterChip>
-          {STATUS_ORDER.map((st) => (
-            <FilterChip key={st} on={filter === st} onClick={() => setFilter(st)}>
-              {LEAD_STATUS_LABEL[st]} <span className="num text-faint">{counts[st]}</span>
-            </FilterChip>
-          ))}
-          <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-          <Segmented
-            label="Niche"
-            value={nicheFilter}
-            onChange={setNicheFilter}
-            items={[
-              { value: "all", label: "Both" },
-              { value: "realestate", label: "Real estate" },
-              { value: "detailing", label: "Detailing" },
-            ]}
-          />
-        </div>
-        {/* On a phone each lead is a two-line row: who, then status, next call and the call button. */}
-        <ul className="divide-y divide-rule md:hidden">
-          {leads.map((l) => {
-            const overdue = !!l.nextAt && new Date(l.nextAt).getTime() < now && (l.status === "callback" || l.status === "interested");
-            return (
-              <li key={l.id} id={`lead-m-${l.id}`} className={cn("py-3", focus === l.id && "-mx-2 rounded-[12px] bg-raised px-2")}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-[14px]">
-                      <Editable value={l.business} label="Business" onSave={(v) => actions.updateLead(l.id, { business: v })} />
-                    </div>
-                    <div className="truncate text-[12px] text-faint">
-                      <Editable value={l.contact} label="Contact" placeholder="Add contact" onSave={(v) => actions.updateLead(l.id, { contact: v })} allowEmpty /> · {NICHE_LABEL[l.niche]} ·{" "}
-                      <Editable value={l.city} label="City" placeholder="Add city" onSave={(v) => actions.updateLead(l.id, { city: v })} allowEmpty />
-                    </div>
-                    <div className="num text-[12px] text-muted">
-                      <Editable value={l.phone} label="Phone" placeholder="Add phone" onSave={(v) => actions.updateLead(l.id, { phone: v })} allowEmpty />
-                    </div>
-                  </div>
-                  <a href={`tel:${l.phone.replace(/\s/g, "")}`} className="press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-control px-3 text-[13px]">
-                    <Phone size={13} /> Call
-                  </a>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <select
-                    value={l.status}
-                    onChange={(e) => actions.updateLead(l.id, { status: e.target.value as LeadStatus })}
-                    aria-label={`Status for ${l.business}`}
-                    className={cn("h-8 appearance-none rounded-full border-0 px-3 text-[12px] outline-none", pill[l.status])}
-                  >
-                    {STATUS_ORDER.map((st) => (
-                      <option key={st} value={st} className="bg-raised text-text">
-                        {LEAD_STATUS_LABEL[st]}
-                      </option>
-                    ))}
-                  </select>
-                  <span className={cn("num text-[12px]", overdue ? "text-ember-soft" : "text-muted")}>{l.nextAt ? relDay(l.nextAt, now) : ""}</span>
-                </div>
-                {l.note && <p className="mt-1.5 text-[13px] text-muted">{l.note}</p>}
-              </li>
-            );
-          })}
-          {leads.length === 0 && <li className="py-6 text-center text-[13px] text-faint">No leads match. Add one with Quick add.</li>}
-        </ul>
-        <div className="relative -mx-2 hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[860px] border-collapse text-[13px]">
-            <thead>
-              <tr className="text-[12px] text-faint">
-                <th className="w-[26%] pb-2 pl-2 text-left font-normal">Business</th>
-                <th className="pb-2 text-left font-normal">Niche</th>
-                <th className="pb-2 text-left font-normal">Status</th>
-                <th className="pb-2 text-left font-normal">Next</th>
-                <th className="w-[28%] pb-2 text-left font-normal">Note</th>
-                <th className="pr-2 pb-2 text-right font-normal">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((l) => (
-                <LeadRow key={l.id} l={l} now={now} focused={focus === l.id} />
-              ))}
-              {leads.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-2 py-6 text-center text-[13px] text-faint">
-                    No leads match. Add one with Quick add (N).
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+      <CallQueue state={s} now={now} focus={focus} />
     </div>
   );
-}
-
-function FilterChip({ on, className, ...rest }: { on: boolean } & React.ComponentProps<"button">) {
-  return (
-    <button
-      aria-pressed={on}
-      className={cn("press inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]", on ? "bg-active text-text" : "text-muted hover:bg-raised hover:text-text", className)}
-      {...rest}
-    />
-  );
-}
-
-function LeadRow({ l, now, focused }: { l: Lead; now: number; focused: boolean }) {
-  const overdue = !!l.nextAt && new Date(l.nextAt).getTime() < now && (l.status === "callback" || l.status === "interested");
-  const local = l.nextAt ? toLocalInput(l.nextAt) : "";
-  return (
-    <tr id={`lead-${l.id}`} className={cn("group border-t border-rule align-middle", focused && "bg-raised")}>
-      <td className="max-w-0 py-2.5 pl-2">
-        <div className="truncate">
-          <Editable value={l.business} label="Business" onSave={(v) => actions.updateLead(l.id, { business: v })} />
-        </div>
-        <div className="truncate text-[12px] text-faint">
-          <Editable value={l.contact} label="Contact" placeholder="Add contact" onSave={(v) => actions.updateLead(l.id, { contact: v })} allowEmpty /> ·{" "}
-          <Editable value={l.city} label="City" placeholder="Add city" onSave={(v) => actions.updateLead(l.id, { city: v })} allowEmpty /> ·{" "}
-          <span className="num">
-            <Editable value={l.phone} label="Phone" placeholder="Add phone" onSave={(v) => actions.updateLead(l.id, { phone: v })} allowEmpty />
-          </span>
-        </div>
-      </td>
-      <td className="py-2.5 whitespace-nowrap text-muted">
-        <select
-          value={l.niche}
-          onChange={(e) => actions.updateLead(l.id, { niche: e.target.value as Niche })}
-          aria-label={`Niche for ${l.business}`}
-          className="-mx-1 cursor-pointer appearance-none rounded-[6px] bg-transparent px-1 text-inherit outline-none hover:bg-raised"
-        >
-          {(Object.keys(NICHE_LABEL) as Niche[]).map((n) => (
-            <option key={n} value={n} className="bg-raised text-text">
-              {NICHE_LABEL[n]}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="py-2.5">
-        <select
-          value={l.status}
-          onChange={(e) => actions.updateLead(l.id, { status: e.target.value as LeadStatus })}
-          aria-label={`Status for ${l.business}`}
-          className={cn("h-7 cursor-pointer appearance-none rounded-full border-0 px-2.5 text-[12px] outline-none", pill[l.status])}
-        >
-          {STATUS_ORDER.map((st) => (
-            <option key={st} value={st} className="bg-raised text-text">
-              {LEAD_STATUS_LABEL[st]}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="py-2.5 whitespace-nowrap">
-        <label className={cn("num relative inline-flex h-7 items-center rounded-[8px] px-1.5 text-[12px] hover:bg-raised", overdue ? "text-ember-soft" : l.nextAt ? "text-muted" : "text-faint")}>
-          {l.nextAt ? relDay(l.nextAt, now) : "—"}
-          <input
-            type="datetime-local"
-            value={local}
-            onChange={(e) => actions.updateLead(l.id, { nextAt: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-            aria-label={`Next call for ${l.business}`}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          />
-        </label>
-      </td>
-      <td className="max-w-0 py-2.5">
-        <input
-          defaultValue={l.note}
-          onBlur={(e) => e.target.value !== l.note && actions.updateLead(l.id, { note: e.target.value })}
-          placeholder="Add a note"
-          aria-label={`Note for ${l.business}`}
-          className="h-7 w-full truncate rounded-[8px] bg-transparent px-1.5 text-[13px] text-muted outline-none hover:bg-raised focus:bg-raised focus:text-text"
-        />
-      </td>
-      <td className="py-2.5 pr-2">
-        <div className="flex items-center justify-end gap-1">
-          <a href={`tel:${l.phone.replace(/\s/g, "")}`} className="press inline-flex h-7 items-center gap-1.5 rounded-full border border-control px-2.5 text-[12px] hover:border-sand">
-            <Phone size={12} /> Call
-          </a>
-          <button
-            onClick={() => removeWithUndo("leads", l.id, l.business, actions.removeLead)}
-            aria-label={`Delete ${l.business}`}
-            className="press grid size-7 place-items-center rounded-full text-faint opacity-0 group-hover:opacity-100 hover:bg-raised hover:text-text focus-visible:opacity-100"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function toLocalInput(iso: string) {
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 /** A Finance Bento KPI tile: a quiet label, one large thin figure, and its progress as ticks. */

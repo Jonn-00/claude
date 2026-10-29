@@ -3,10 +3,11 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { migrate, seed } from "./seed";
 import { buildStats } from "./stats";
-import { dayKey } from "./time";
-import type { State } from "./types";
+import { addDays, dayKey, fromKey } from "./time";
+import type { Lead, LeadStatus, Outcome, State } from "./types";
 import { uid } from "./utils";
 import { stagesOf } from "./stages";
+import { pushChanges, startCloud, type CloudStatus } from "./cloud";
 
 const KEY = "zephyrus:v1";
 
@@ -44,13 +45,50 @@ function get(): State {
 }
 
 export function setState(fn: (s: State) => State) {
-  state = fn(get());
+  const prev = get();
+  state = fn(prev);
   save(state);
+  pushChanges(prev, state, () => setCloud("error"));
   listeners.forEach((l) => l());
+}
+
+/* Cloud sync for leads and dials (see lib/cloud.ts). */
+let cloud: CloudStatus = "local";
+const cloudListeners = new Set<() => void>();
+function setCloud(c: CloudStatus) {
+  if (c === cloud) return;
+  cloud = c;
+  cloudListeners.forEach((l) => l());
+}
+let cloudStarted = false;
+function ensureCloud() {
+  if (cloudStarted || typeof window === "undefined") return;
+  cloudStarted = true;
+  startCloud({
+    get,
+    applyRemote(patch) {
+      state = { ...get(), ...patch };
+      save(state);
+      listeners.forEach((l) => l());
+    },
+    onStatus: setCloud,
+  });
+}
+/** "synced" when leads and dials are saved to this artifact's Claude database, "local" when they stay in this browser. */
+export function useCloudStatus(): CloudStatus {
+  return useSyncExternalStore(
+    (l) => {
+      cloudListeners.add(l);
+      return () => cloudListeners.delete(l);
+    },
+    () => cloud,
+    () => "local",
+  );
 }
 
 function subscribe(l: () => void) {
   listeners.add(l);
+  ensureCloud();
   const onStorage = (e: StorageEvent) => {
     if (e.key === KEY) {
       state = load();
@@ -179,18 +217,45 @@ export const actions = {
   },
   logCall(e: Omit<State["calls"][number], "id" | "at">) {
     const id = uid();
+    const today = dayKey(Date.now());
     setState((s) => {
       const leads = e.leadId
         ? s.leads.map((l) => {
             if (l.id !== e.leadId) return l;
-            const status =
-              e.outcome === "won" ? "won" : e.outcome === "demo" ? "demo" : e.outcome === "interested" ? "interested" : l.status === "new" ? "callback" : l.status;
-            return { ...l, status, nextAt: e.outcome === "won" ? undefined : l.nextAt } as typeof l;
+            const fresh = l.status === "new";
+            const status: LeadStatus =
+              e.outcome === "won" ? "won" : e.outcome === "demo" ? "demo" : e.outcome === "interested" ? "interested"
+              : e.outcome === "talked" ? (fresh ? "callback" : l.status) : fresh ? e.outcome : l.status;
+            return { ...l, status, nextAt: e.outcome === "won" ? undefined : l.nextAt, lastContact: today, log: [{ d: today, s: status }, ...(l.log ?? [])].slice(0, 40) };
           })
         : s.leads;
       return { ...s, leads, calls: [...s.calls, { ...e, id, at: new Date().toISOString() }] };
     });
     return id;
+  },
+  /** One call on a lead's sheet: records the dial, sets the status, proposes the follow-up and keeps the history. */
+  logLeadOutcome(leadId: string, o: { status: LeadStatus; call: Outcome; days: number | null }) {
+    const id = uid();
+    const today = dayKey(Date.now());
+    let before: Lead | undefined;
+    setState((s) => {
+      const lead = s.leads.find((l) => l.id === leadId);
+      if (!lead) return s;
+      before = lead;
+      let nextAt: string | undefined;
+      if (o.days != null) {
+        const d = fromKey(addDays(today, o.days));
+        d.setHours(10, 0, 0, 0);
+        nextAt = d.toISOString();
+      }
+      const log = [{ d: today, s: o.status }, ...(lead.log ?? [])].slice(0, 40);
+      return {
+        ...s,
+        leads: s.leads.map((l) => (l.id === leadId ? { ...l, status: o.status, nextAt, lastContact: today, log } : l)),
+        calls: [...s.calls, { id, at: new Date().toISOString(), niche: lead.niche, outcome: o.call, leadId }],
+      };
+    });
+    return { id, before };
   },
   undoCall(id: string, lead?: State["leads"][number]) {
     setState((s) => ({

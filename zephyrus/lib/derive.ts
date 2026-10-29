@@ -1,4 +1,5 @@
 import type { CallEvent, Lead, Niche, State, Video } from "./types";
+import { OPEN_STATUSES, reached } from "./types";
 import { addDays, dayKey } from "./time";
 
 export type CallCounts = { dials: number; reached: number; interested: number; demos: number; won: number };
@@ -9,7 +10,7 @@ export function countCalls(calls: CallEvent[], from: string, to: string, niche?:
     const d = dayKey(new Date(e.at));
     if (d < from || d > to || (niche && e.niche !== niche)) continue;
     c.dials++;
-    if (e.outcome !== "noanswer") c.reached++;
+    if (reached(e.outcome)) c.reached++;
     if (e.outcome === "interested" || e.outcome === "demo" || e.outcome === "won") c.interested++;
     if (e.outcome === "demo") c.demos++;
     if (e.outcome === "won") c.won++;
@@ -35,7 +36,7 @@ export function callbacks(leads: Lead[], now: number) {
   const end = new Date(now);
   end.setHours(23, 59, 59, 999);
   return leads
-    .filter((l) => l.nextAt && (l.status === "callback" || l.status === "interested") && new Date(l.nextAt).getTime() <= end.getTime())
+    .filter((l) => l.nextAt && OPEN_STATUSES.includes(l.status) && new Date(l.nextAt).getTime() <= end.getTime())
     .sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
 }
 

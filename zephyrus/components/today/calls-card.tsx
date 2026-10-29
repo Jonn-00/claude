@@ -28,7 +28,7 @@ export function CallsCard({ state, now, className }: { state: State; now: number
   const cbs = callbacks(state.leads, now).slice(0, 3);
   const ratio = Math.min(1, c.dials / target);
 
-  const byOutcome = { noanswer: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
+  const byOutcome = { noanswer: 0, voicemail: 0, talked: 0, interested: 0, demo: 0, won: 0 } as Record<Outcome, number>;
   for (const e of state.calls) if (dayKey(new Date(e.at)) === today) byOutcome[e.outcome]++;
 
   const log = (o: Outcome) => {

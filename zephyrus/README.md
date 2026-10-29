@@ -20,7 +20,7 @@ For a production build: `npm run build && npm start`.
 | --- | --- |
 | **Today** | The production line (every video moving Idea → Live), channel views, calls against your daily dial target, the hourly planner, reminders, and the folded daily agenda. |
 | **Channels** | Per-channel views, watch time, subscribers and revenue; where the views came from (treemap); views by weekday (radar); recent uploads; rename channels here. |
-| **Agency** | Dials per day against target, reach and close numbers by niche, one-tap call logging, when people pick up by hour, this month's closes with the current pace carried to month end, and the lead list. |
+| **Agency** | Dials per day against target, reach and close numbers by niche, one-tap call logging, when people pick up by hour, this month's closes with the current pace carried to month end, and the call queue (the Realtor Call Tracker, built in). |
 | **Planner** | The week in blocks. Drag down a day to add one; click a block to rename, change its kind or delete it. |
 | **Notes** | Today's work flowing into your stack of daily reports, quick notes, and every past report. |
 
@@ -51,6 +51,14 @@ Almost everything is edited where it sits: click a name or title (stage names, c
 | `A` | Open or fold the agenda on Today |
 | `[` | Fold or unfold the sidebar |
 | `Esc` | Close whatever is open |
+
+## Call queue (from the Realtor Call Tracker)
+
+The bottom of Agency is the Realtor Call Tracker rebuilt: agents ordered overdue first, then due today, then not called, Hot before Warm before Cold. Filter by status, score, niche or search. The call script (opener, voicemail, objections, when to call) folds open above the list, with your name filled in. The header says whether it's a good time to call in Toronto.
+
+Click an agent for their sheet: why to call them, floor plans, brokerage and contact facts, Call / Copy number / Copy text / Website / Instagram, and the call log. Tapping an outcome (No answer, Voicemail + text, Call back, Sample sent, Interested, Demo booked, Won, Not interested) records a dial (so the charts above count it), sets the status, proposes the follow-up date and adds to the history; Undo takes it all back. Notes save as you type.
+
+**Saved to Claude.** In the hosted copy, leads and dials live in the artifact's Claude database, so they follow you across devices (the queue header shows "Saved to Claude"). Lead documents keep the tracker's format, so a chat that researched leads for the tracker can add them to Zephyrus instead: give it this artifact's link and say "add these to the `leads` collection". Dials are stored one document per day under `dials`. Run locally, both stay in the browser.
 
 ## Your data
 
