@@ -20,7 +20,7 @@ A personal dashboard: four YouTube automation channels plus a cold-calling agenc
 
 - `npx tsc --noEmit`, then `npx next build`.
 - Design checks from the installed skills (run from the repo root): `node .claude/skills/taste-skill/scripts/lint.mjs --app zephyrus/app zephyrus/components zephyrus/lib` and `.claude/skills/taste-skill/scripts/inspect.mjs --app <url>`; `.taste-skill/direction.json` lists the allowed exceptions (the requested gradient cards, emoji inside real video titles) with reasons.
-- The Playwright click-through suites from the cloud session were kept in that session's scratch folder, not the repo. If they're needed, rebuild them under `tests/e2e`.
+- Click-through tests in a real browser: `npm run dev`, then `npm run test:e2e` (the Next app on :3000; pass another URL to use another port), and `npm run test:e2e:spa` (builds and tests the single-file copy). First time on a machine: `npx playwright install chromium`. They load test data into the browser (`tests/e2e/fixtures`: the old sample day and six made-up agents); the app itself ships empty. `cloud-test.js` checks the Claude-database sync against an in-memory stand-in, since the real one only exists inside Claude.
 
 ## Preferences seen so far
 

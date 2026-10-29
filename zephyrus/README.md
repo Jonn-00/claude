@@ -12,6 +12,8 @@ npm run dev        # http://localhost:3000
 
 For a production build: `npm run build && npm start`.
 
+Browser tests: with `npm run dev` running, `npm run test:e2e`; `npm run test:e2e:spa` tests the single-file copy. The first time, run `npx playwright install chromium`.
+
 **Hosted copy:** https://claude.ai/artifact/1bDc6xgm5D7zwujZh1hRSY (private to you until you share it). It's the same app built into one file by `npm run build:single` (output in `spa/dist/zephyrus.html`), with pages as `#channels`, `#agency` and so on. Data you enter there is saved in that browser, separately from the local app.
 
 ## Pages

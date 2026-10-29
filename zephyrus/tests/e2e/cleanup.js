@@ -1,0 +1,33 @@
+const { chromium } = require('playwright');
+const path = require('path');
+const OUT = path.join(__dirname, '.out');
+
+const base = process.argv[2] || 'http://localhost:3000';
+const out = (k, v) => console.log((v ? 'PASS ' : 'FAIL ') + k);
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const errs=[]; p.on('pageerror', e=>errs.push(e.message));
+const old = require(path.join(OUT, 'sample.cjs')).oldSeed();
+old.leads.push({ id: 'ab12cd34', business: 'My Real Lead', contact: '', niche: 'detailing', city: '', phone: '', status: 'new', note: '' });
+old.notes.push({ id: 'zz99yy88', createdAt: new Date().toISOString(), text: 'My own note' });
+old.calls.push({ id: 'qq11ww22', at: new Date().toISOString(), niche: 'realestate', outcome: 'talked', leadId: 'l01' });
+old.channels[0].name = 'tikktokers (renamed)';
+await p.goto(base + (process.argv[3] === 'hash' ? '/index.html' : '/'), { waitUntil: 'networkidle' });
+await p.evaluate((s) => localStorage.setItem('zephyrus:v1', s), JSON.stringify(old));
+await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+// trigger a save so the migrated state is written back
+const s = await p.evaluate(() => JSON.parse(localStorage.getItem('zephyrus:v1')));
+const page = await p.content();
+out('sample videos gone from the page', !page.includes('The $5 coffee myth'));
+out('sample reminders gone', !page.includes('Top up voiceover credits'));
+await p.goto(base + (process.argv[3] === 'hash' ? '/index.html#agency' : '/agency'), { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
+out('sample leads gone', (await p.locator('text=Harbourline Realty').count()) === 0);
+out('your own lead kept (' + (await p.locator('text=My Real Lead').count()) + ')', (await p.locator('text=My Real Lead').count()) >= 1);
+  const kept = await p.evaluate(() => JSON.parse(localStorage.getItem('zephyrus:v1')));
+  out('storage cleaned too (leads: ' + kept.leads.map((l) => l.id).join(',') + ')', kept.leads.length === 1 && kept.videos.length === 0 && kept.blocks.length === 0);
+  out('your dial kept, unlinked from the sample lead', kept.calls.length === 1 && kept.calls[0].id === 'qq11ww22' && !kept.calls[0].leadId);
+await p.goto(base + (process.argv[3] === 'hash' ? '/index.html#notes' : '/notes'), { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
+out('your own note kept', (await p.locator('text=My own note').count()) === 1);
+out('sample notes and reports gone', (await p.locator('text=Detailers answer more before 10 am').count()) === 0 && (await p.locator('text=52 dials. Closed Lakeview').count()) === 0);
+await p.goto(base + (process.argv[3] === 'hash' ? '/index.html#channels' : '/channels'), { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
+  out('your channel rename kept', (await p.locator('text=tikktokers (renamed)').count()) > 0);
+console.log(errs.length ? errs.join('\n') : 'no page errors'); await b.close(); })();

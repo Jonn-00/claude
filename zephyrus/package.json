@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "build:single": "node spa/build.mjs"
+    "build:single": "node spa/build.mjs",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test:e2e:spa": "node tests/e2e/run.mjs --spa"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "5.3.0",
@@ -27,6 +29,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.25.12",
+    "playwright": "^1.63.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5.9.0"
   }
